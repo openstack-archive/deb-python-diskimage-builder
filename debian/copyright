@@ -1,0 +1,66 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: diskimage-builder
+Upstream-Contact: OpenStack Devel <openstack-dev@lists.openstack.org>
+Source: https://git.openstack.org/cgit/openstack/diskimage-builder
+
+Files: debian/*
+Copyright: (c) 2013, Thomas Goirand <zigo@debian.org>
+License: Apache-2
+
+Files: *
+Copyright: (c) 2012-2013, Hewlett-Packard Development Company, L.P.
+           (c) 2012-2013, NTTdocomo
+           (c) 2013, RedHat Inc.
+           (c) 2013, Clint Byrum <clint@fewbar.com>
+           (c) 2013, Robert Collins <robertc@robertcollins.net>
+           (c) 2013, Tim Miller <tim.miller.0@gmail.com>
+           (c) 2013, Lucas Alvares Gomes <lucasagomes@gmail.com>
+           (c) 2013, Chris Jones <cmsj@tenshu.net>
+           (c) 2013, Steve Baker <sbaker@redhat.com>
+           (c) 2013, Derek Higgins <derekh@redhat.com>
+           (c) 2013, Devananda van der Veen <devananda.vdv@gmail.com>
+           (c) 2013, Monty Taylor <mordred@inaugust.com>
+           (c) 2013, Chris Jones <chris.jones@canonical.com>
+           (c) 2013, Ghe Rivero <ghe.rivero@hp.com>
+           (c) 2013, Dan Prince <dprince@redhat.com>
+           (c) 2013, Ghe Rivero <ghe.rivero@gmail.com>
+           (c) 2013, Arata Notsu <notsu@virtualtech.jp>
+           (c) 2013, NoBodyCam <nobodycam@gmail.com>
+           (c) 2013, Chris Alfonso <calfonso@redhat.com>
+           (c) 2013, Richard Su <rwsu@redhat.com>
+           (c) 2013, Matthew Farrellee <matt@redhat.com>
+           (c) 2013, Joe Gordon <joe.gordon0@gmail.com>
+           (c) 2013, James Slagle <jslagle@redhat.com>
+           (c) 2013, NTTdocomo <openstack-contributor-ml@nttdocomo.com>
+           (c) 2013, Jeff Peeler <jpeeler@redhat.com>
+           (c) 2013, Jan Provaznik <jprovazn@redhat.com>
+           (c) 2013, Chris Krelle <nobodycam@gmail.com>
+           (c) 2013, Mark McLoughlin <markmc@redhat.com>
+           (c) 2013, justin-hopper <justin.hopper@hp.com>
+           (c) 2013, Darragh Bailey <dbailey@hp.com>
+           (c) 2013, chriskrelle <chriskrelle@tooltester.(none)>
+           (c) 2013, Vipul Sabhaya <vipuls@gmail.com>
+           (c) 2013, Tim Serong <tserong@suse.com>
+           (c) 2013, Steven Dake <sdake@redhat.com>
+           (c) 2013, sjing <sjing@cn.ibm.com>
+           (c) 2013, Robert Myers <robert.myers@rackspace.com>
+           (c) 2013, NTTdocomo-openstack <openstack-contributor-ml@nttdocomo.com>
+           (c) 2013, Kashyap Chamarthy <kchamart@redhat.com>
+           (c) 2013, Ivan Berezovskiy <iberezovskiy@mirantis.com>
+License: Apache-2
+
+License: Apache-2
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ .
+    http://www.apache.org/licenses/LICENSE-2.0
+ .
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ .
+ On Debian-based systems the full text of the Apache version 2.0 license
+ can be found in /usr/share/common-licenses/Apache-2.0.
