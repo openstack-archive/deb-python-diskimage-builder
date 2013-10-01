@@ -10,7 +10,10 @@ Build-Depends: debhelper (>= 9),
                python-all (>= 2.6.6-3~),
                python-setuptools,
                testrepository (>= 0.0.13)
-Build-Depends-Indep: python-babel, python-fixtures, python-testtools (>= 0.9.27)
+Build-Depends-Indep: python-babel,
+                     python-fixtures,
+                     python-subunit,
+                     python-testtools (>= 0.9.27)
 Standards-Version: 3.9.4
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/python-diskimage-builder.git
 Vcs-Git: git://anonscm.debian.org/openstack/python-diskimage-builder.git

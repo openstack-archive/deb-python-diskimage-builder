@@ -8,5 +8,5 @@ include /usr/share/openstack-pkg-tools/pkgos.make
 
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
-	python setup.py testr --slowest
+	python setup.py testr --slowest --testr-args='--subunit  '
 endif
