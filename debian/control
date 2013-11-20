@@ -15,8 +15,8 @@ Build-Depends-Indep: python-babel,
                      python-subunit,
                      python-testtools (>= 0.9.27)
 Standards-Version: 3.9.4
-Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/python-diskimage-builder.git
-Vcs-Git: git://anonscm.debian.org/openstack/python-diskimage-builder.git
+Vcs-Browser: http://git.gplhost.com/gitweb/?p=openstack/python-diskimage-builder.git
+Vcs-Git: http://git.gplhost.com/openstack/python-diskimage-builder.git
 Homepage: https://git.openstack.org/cgit/openstack/diskimage-builder
 
 Package: python-diskimage-builder
