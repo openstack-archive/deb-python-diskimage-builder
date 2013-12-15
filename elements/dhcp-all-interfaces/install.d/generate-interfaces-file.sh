@@ -6,14 +6,21 @@
 
 INTERFACES_FILE="/etc/network/interfaces"
 
+# Serialize runs so that we don't miss hot-add interfaces
+FLOCK=${1:-}
+if [ -z "$FLOCK" ] ; then
+    exec flock -x $INTERFACES_FILE $0 flocked
+fi
+
 function get_if_link() {
   cat /sys/class/net/${1}/carrier
 }
 
 for interface in $(ls /sys/class/net | grep -v ^lo$) ; do
   echo -n "Inspecting interface: $interface..."
-  HAS_CONFIG=$(ifquery $interface >/dev/null 2>&1)
-  if [ "$HAS_CONFIG" == "" ]; then
+  if ifquery $interface >/dev/null 2>&1 ; then
+    echo "Has config, skipping."
+  else
     ip link set dev $interface up >/dev/null 2>&1
     HAS_LINK="$(get_if_link $interface)"
 
@@ -28,7 +35,7 @@ for interface in $(ls /sys/class/net | grep -v ^lo$) ; do
       TRIES=$(( TRIES - 1 ))
     done
     if [ "$HAS_LINK" == "1" ] ; then
-      printf "auto $interface\r\niface $interface inet dhcp\r\n\r\n" >>$INTERFACES_FILE]
+      printf "auto $interface\niface $interface inet dhcp\n\n" >>$INTERFACES_FILE
       echo "Configured"
     else
       echo "No link detected, skipping"

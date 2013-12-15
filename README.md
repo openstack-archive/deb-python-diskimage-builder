@@ -98,7 +98,7 @@ offline mode.
 Base images
 -----------
 
-These are cached by the standard elements - ubuntu, fedora.
+These are cached by the standard elements - fedora, redhat, ubuntu.
 
 source-repositories
 -------------------
@@ -140,11 +140,13 @@ VM image with partition table and installed grub boot sector. The mellanox
 element adds support for mellanox infiniband hardware to both the deploy
 ramdisk and the built images.
 
-Images start as a base ubuntu cloud image. Other distributions may be added in
-future, the infrastructure deliberately makes few assumptions about the exact
-operating system is use. The base image has opensshd running (a new key
-generated on first boot) and accepts use keys via the cloud metadata service,
-loading them into the 'ubuntu' user.
+Images must specify a base distribution image element. Currently base
+distribution elements exist for fedora, rhel, and ubuntu.  Other
+distributions may be added in future, the infrastructure deliberately
+makes few assumptions about the exact operating system in use.
+The base image has opensshd running (a new key generated on first boot)
+and accepts keys via the cloud metadata service, loading them into the
+distribution specific default user account.
 
 The goal of a built image is to have any global configuration ready to roll,
 but nothing that ties it to a specific cloud instance: images should be able to
@@ -208,8 +210,8 @@ part of the process you need to customise:
 
 * root.d: Create or adapt the initial root filesystem content. This is where
   alternative distribution support is added, or customisations such as
-  building on an existing image. If no element configures a root, the ubuntu
-  element will be automatically invoked to obtain an Ubuntu image.
+  building on an existing image. 
+
   Runs outside the chroot on the host environment.
   
   Only one element can use this at a time unless particular care is taken not
@@ -260,14 +262,17 @@ part of the process you need to customise:
   to disable unneeded services and clean the cache left by the package
   manager to reduce the size of the image.
 
-* first-boot.d: Runs inside the image before rc.local. Scripts from here are
-  good for doing per-instance configuration based on cloud metadata.
-
 * environment.d: Bash script snippets that are sourced before running scripts
   in each phase. Use this to set an environment variable for other hooks.
 
 * element-deps : A plain text, newline separated list of elements which will
   be added to the list of elements built into the image at image creation time.
+
+* first-boot.d: **DEPRECATED** Runs inside the image before
+  rc.local. Scripts from here are good for doing per-instance
+  configuration based on cloud metadata. **This will be removed in a
+  future release of diskimage-builder. The os-refresh-config element in
+  tripleo-image-elements is recommended as a replacement.**
 
 Ramdisk elements support the following files in their element directories:
 
@@ -377,6 +382,11 @@ daemons (e.g. upstart) will usually be instructed to output to a serial
 console so nova's console-log command can function. There is an element in the
 tripleo-image-elements repository called "remove-serial-console" which will
 force all boot messages to appear on the main console.
+
+Ramdisk images can be debugged at run-time by passing "troubleshoot" as a
+kernel command line argument, or by pressing "t" when an error is reached. This
+will spawn a shell on the console (this can be extremely useful when network
+interfaces or disks are not detected correctly).
 
 Testing Elements
 ----------------

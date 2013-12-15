@@ -47,7 +47,7 @@ readonly DISK=$(get_kernel_parameter disk)
 readonly DEPLOYMENT_ID=$(get_kernel_parameter deployment_id)
 readonly DEPLOYMENT_KEY=$(get_kernel_parameter deployment_key)
 readonly ISCSI_TARGET_IQN=$(get_kernel_parameter iscsi_target_iqn)
-readonly TROUBLESHOOT=$(get_kernel_parameter troubleshoot)
+TROUBLESHOOT=$(get_kernel_parameter troubleshoot)
 FIRST_ERR_MSG=
 
 mount -t sysfs none /sys
@@ -59,13 +59,18 @@ else
     UDEVD="udevd"
 fi
 
-if [ "$UDEVD" = "systemd-udevd" ]; then
-    # devtmpfs is required since udev 176
+# udev versions 176 and newer require a different on-disk setup
+UDEVD_VERSION=$($UDEVD --version)
+
+if [ "$UDEVD_VERSION" != "" -a $UDEVD_VERSION -gt 175 ]; then
+    echo "Using new-style udevd setup"
     mount -t devtmpfs none /dev
     mkdir -p /run
     mount -t tmpfs -o "nosuid,size=20%,mode=0755" tmpfs /run
     mkdir -p /run/lock
+    mkdir -p /run/udev
 else
+    echo "Using old-style udevd setup"
     mount -t tmpfs none /dev
     ln -sf /proc/self/fd /dev/fd
     mknod /dev/null c 1 3
@@ -100,46 +105,3 @@ $UDEVD --daemon --resolve-names=never
 
 echo "load modules"
 load_modules_by_udev
-
-echo "starting network $BOOT_MAC_ADDRESS"
-t=0
-while ! BOOT_INTERFACE=$(find_interface "$BOOT_MAC_ADDRESS"); do
-	t=`expr "$t" + 5`
-	if [ "$t" -gt 10 ]; then
-		break
-	fi
-	sleep 5
-done
-if [ -z "$BOOT_INTERFACE" ]; then
-	err_msg "Could not find an interface that owns MAC: $BOOT_MAC_ADDRESS"
-	troubleshoot
-fi
-
-readonly BOOT_INTERFACE
-
-ifconfig lo 127.0.0.1 up
-ifconfig "$BOOT_INTERFACE" up
-if [ $? -ne 0 ]; then
-	sleep 10
-	ifconfig "$BOOT_INTERFACE" up
-	if [ $? -ne 0 ]; then
-		err_msg "Failed to ifconfig up $BOOT_INTERFACE"
-		troubleshoot
-	fi
-fi
-ifconfig "$BOOT_INTERFACE" "$BOOT_IP_ADDRESS" netmask "$BOOT_NETMASK"
-route add default gw $BOOT_GATEWAY
-
-echo "pinging to boot server $BOOT_SERVER"
-w=30
-while [ $w -gt 0 ]; do
-	ping -c 5 -q "$BOOT_SERVER" > /dev/null
-	if [ $? -eq 0 ]; then
-		break
-	fi
-	sleep 1
-	w=`expr $w - 5`
-done
-
-echo "network ready"
-

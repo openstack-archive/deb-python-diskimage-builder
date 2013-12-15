@@ -9,7 +9,7 @@ set -eu
 shopt -s extglob
 
 DIB_CLOUD_IMAGES=${DIB_CLOUD_IMAGES:-http://cloud-images.ubuntu.com/}
-DIB_RELEASE=${DIB_RELEASE:-raring}
+DIB_RELEASE=${DIB_RELEASE:-saucy}
 BASE_IMAGE_FILE=${BASE_IMAGE_FILE:-$DIB_RELEASE-server-cloudimg-$ARCH-root.tar.gz}
 SHA256SUMS=${SHA256SUMS:-https://${DIB_CLOUD_IMAGES##http?(s)://}/$DIB_RELEASE/current/SHA256SUMS}
 CACHED_FILE=$DIB_IMAGE_CACHE/$BASE_IMAGE_FILE
@@ -24,6 +24,9 @@ else
   grep "$BASE_IMAGE_FILE" SHA256SUMS.ubuntu.$DIB_RELEASE.$ARCH | sha256sum --check -
   popd
 fi
-# Extract the base image
-sudo tar -C $TARGET_ROOT -xzf $DIB_IMAGE_CACHE/$BASE_IMAGE_FILE
-sudo rmdir $TARGET_ROOT/lost+found
+# Extract the base image (use --numeric-owner to avoid UID/GID mismatch between
+# image tarball and host OS e.g. when building Ubuntu image on an openSUSE host)
+sudo tar -C $TARGET_ROOT --numeric-owner -xzf $DIB_IMAGE_CACHE/$BASE_IMAGE_FILE
+if [ -e "$TARGET_ROOT/lost+found" ]; then
+  sudo rmdir $TARGET_ROOT/lost+found
+fi

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright 2012 Hewlett-Packard Development Company, L.P.
 # All Rights Reserved.
@@ -36,13 +36,27 @@ fi
 
 rcode=$(curl -L -o $tmp -w '%{http_code}' $url $time_cond)
 if [ "$rcode" = "200" ] ; then
-    echo $success
-    mv $tmp $dest
-elif [ "$rcode" = "304" ] ; then
+    # In cases where servers ignore the Modified time,
+    # curl cancels the download, outputs a 200 and leaves
+    # the output file untouched, we don't want this empty file.
+    if [ -n "$time_cond" -a ! -s $tmp ] ; then
+        echo "Ignoring empty file returned by curl. Using locally cached $url"
+        rm -f $tmp
+    else
+        echo $success
+        mv $tmp $dest
+    fi
+# 213 is the response to a ftp MDTM command, curl outputs a 213 as the status
+# if the url redirected to a ftp server and Not-Modified
+elif [ "$rcode" = "304" -o "$rcode" = "213" ] ; then
     echo "Server copy has not changed. Using locally cached $url"
     rm -f $tmp
 else
     echo "Server returned an unexpected response code. [$rcode]"
     rm -f $tmp
+    # expose some error codes so the calling process might know what happened
+    if [ "$rcode" = "404" ] ; then
+        exit 44
+    fi
     exit 1
 fi

@@ -1,8 +1,9 @@
 *~
 .testrepository
-*.swp
+*.sw?
 *.pyc
 .tox
+*.egg
 *.egg-info
 dist
 *.qcow2
