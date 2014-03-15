@@ -9,5 +9,5 @@ export OSLO_PACKAGE_VERSION=$(VERSION)
 
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
-	python setup.py testr --slowest --testr-args='--subunit  '
+	python setup.py testr --slowest
 endif
