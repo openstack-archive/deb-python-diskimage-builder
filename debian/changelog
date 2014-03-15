@@ -2,4 +2,4 @@ python-diskimage-builder (0.1.8-1) experimental; urgency=low
 
   * Initial release. (Closes: #723823)
 
- -- Thomas Goirand <zigo@debian.org>  Fri, 20 Sep 2013 10:08:10 +0800
+ -- Thomas Goirand <zigo@debian.org>  Sat, 15 Mar 2014 17:13:48 +0800
