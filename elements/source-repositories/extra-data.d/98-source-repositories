@@ -10,11 +10,11 @@ function get_repos_for_element(){
     local REPO_SOURCES=$1
     local CACHE_URL=$TMP_HOOKS_PATH/bin/cache-url
 
-    local REGEX="^([^ ]+) (git|tar|file) (/[^ ]+) ([^ ]+) ?([^ ]*)$"
+    local REGEX="^([^ ]+) (git|tar|file|package) ?(/[^ ]+)? ?([^ ]+)? ?([^ ]*)$"
 
     while read line ; do
 
-        # ignore blank lines and lines begining in '#'
+        # ignore blank lines and lines beginning in '#'
         [[ "$line" == \#* ]] || [[ -z "$line" ]] && continue
 
         if [[ "$line" =~ $REGEX ]]  ; then
@@ -35,38 +35,46 @@ function get_repos_for_element(){
             # REPOLOCATION can be overridden with DIB_REPOLOCATION_{name}
             local REPOLOCATION_OVERRIDE=DIB_REPOLOCATION_${REPONAME//-/_}
             REPOLOCATION=${!REPOLOCATION_OVERRIDE:-$REPOLOCATION}
-            if [ "$REPOLOCATION" = "$REPO_ORIG_LOCATION" ] ; then
-                # We're pulling from the element specified repo, do caching for
-                # the user.
-                CACHE_NAME=$(echo $REPOLOCATION | sha1sum | awk '{ print $1 }' )
-                CACHE_PATH=~/.cache/image-create/repository-sources/$CACHE_NAME
-            else
-                CACHE_PATH=''
-            fi
 
             # REPOREF can be overridden with DIB_REPOREF_{name}
             local REPOREF_OVERRIDE=DIB_REPOREF_${REPONAME//-/_}
             REPOREF=${!REPOREF_OVERRIDE:-$REPOREF}
 
+            # Determine a unique cache path for this repo
+            CACHE_NAME=$(echo "${REPOTYPE}_${REPOLOCATION}" | sha1sum | awk '{ print $1 }' )
+            CACHE_PATH=~/.cache/image-create/repository-sources/$CACHE_NAME
+
             case $REPOTYPE in
             git)
-                echo "Fetching $REPONAME git repository from $REPOLOCATION($REPOREF)"
-                sudo mkdir -p $REPO_SUB_DIRECTORY
-                if [ -n "$CACHE_PATH" ] ; then
-                    echo "Caching $REPONAME source repository in $CACHE_PATH"
-                    if [ ! -e "$CACHE_PATH" ] ; then
-                        git clone $REPOLOCATION $CACHE_PATH.tmp
-                        mv ${CACHE_PATH}{.tmp,}
-                    elif [ -z "$DIB_OFFLINE" ] ; then
-                        git --git-dir=$CACHE_PATH/.git fetch
-                        git --git-dir=$CACHE_PATH/.git --work-tree=$CACHE_PATH reset --hard origin/master
-                    fi
-                    sudo git clone $CACHE_PATH $REPO_DEST
-                else
-                    sudo git clone $REPOLOCATION $REPO_DEST
+                if [ -z "${!REPOLOCATION_OVERRIDE:-""}" -a -n "${DIB_GITREPOBASE:-""}" ] ; then
+                    # Transform the current repo base to the new one
+                    local NEW_REPOLOCATION=$(echo $REPOLOCATION |\
+                        sed "s,^[^:]\+://[^/]\+/\(~[^/]\+\)\?\(.*\)$,${DIB_GITREPOBASE}\2,g")
+                    echo "Transformed ${REPOLOCATION} to ${NEW_REPOLOCATION}"
+                    REPOLOCATION=$NEW_REPOLOCATION
+                    # Also update the cache location
+                    CACHE_NAME=$(echo "${REPOTYPE}_${REPOLOCATION}" | sha1sum | awk '{ print $1 }' )
+                    CACHE_PATH=~/.cache/image-create/repository-sources/$CACHE_NAME
                 fi
+                sudo mkdir -p $REPO_SUB_DIRECTORY
+
+                if [ ! -e "$CACHE_PATH" ] ; then
+                    echo "Caching $REPONAME from $REPOLOCATION in $CACHE_PATH"
+                    git clone $REPOLOCATION $CACHE_PATH.tmp
+                    mv ${CACHE_PATH}{.tmp,}
+                fi
+
+                HAS_REF=$(git --git-dir=$CACHE_PATH/.git show-ref $REPOREF || true)
+                if [ -z "$DIB_OFFLINE" -o -z "$HAS_REF" ] ; then
+                    echo "Updating cache of $REPOLOCATION in $CACHE_PATH with ref $REPOREF"
+                    git --git-dir=$CACHE_PATH/.git fetch --update-head-ok $REPOLOCATION ${REPOREF}:${REPOREF}
+                fi
+
+                echo "Cloning from $REPONAME cache and applying ref $REPOREF"
+                sudo git clone $CACHE_PATH $REPO_DEST
                 pushd $REPO_DEST
-                sudo git reset --hard $REPOREF
+                sudo git fetch $CACHE_PATH $REPOREF
+                sudo git reset --hard FETCH_HEAD
                 popd
                 ;;
             tar)
@@ -102,14 +110,33 @@ function get_repos_for_element(){
                     sudo curl $REPOLOCATION -o $REPO_DEST
                 fi
                 ;;
+            package)
+                echo "$REPONAME set to package source type"
+                ;;
             *)
-                echo "Unsupported repository type"
+                echo "Unsupported repository type: $REPOTYPE"
                 return 1
                 ;;
             esac
+
             # Capture the in-instance repository path for later review / other
             # elements (like a pypi dependency cache).
             echo "$REPOPATH" | sudo dd of=$TMP_MOUNT_PATH/etc/dib-source-repositories oflag=append conv=notrunc
+
+            # Save the $REPOTYPE used so that it can be used later by install.d
+            if [ "$REPOTYPE" = "package" ]; then
+                REPOINSTALLTYPE="package"
+            else
+                REPOINSTALLTYPE="source"
+            fi
+
+            # Create symlink for correct install type
+            pushd $TMP_HOOKS_PATH/install.d
+            if [ -e $REPONAME-$REPOINSTALLTYPE-install ]; then
+                ln -sf $REPONAME-$REPOINSTALLTYPE-install/* .
+            fi
+            popd
+
         else
             echo "Couldn't parse '$line' as a source repository"
             return 1

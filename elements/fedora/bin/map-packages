@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 
 # Copyright 2012 Hewlett-Packard Development Company, L.P.
 # All Rights Reserved.
@@ -25,10 +25,7 @@ package_map = {
     'linux-image-generic': 'kernel',
     'open-iscsi': 'iscsi-initiator-utils',
     'vlan': 'vconfig',
-    'python-dev': 'python-devel',
     'libc6-dev': 'glibc-devel',
-    'libxml2-dev': 'libxml2-devel',
-    'libxslt-dev': 'libxslt-devel',
     'python-libvirt': 'libvirt-python',
     'libvirt-bin': 'libvirt',
     'python-xattr': 'pyxattr',
@@ -50,17 +47,28 @@ package_map = {
     'qpidd': 'qpid-cpp-server',
     'qpid-client': 'qpid-cpp-client',
     'extlinux': 'syslinux-extlinux',
-    'mysql-client-5.5' : 'mariadb',
-    'mysql-server-5.5' : 'mariadb-server',
-    'libmysql-java' : 'mysql-connector-java',
-    'default-jre' : 'java',
-    'tftpd-hpa' : 'tftp-server',
+    'mysql-client-5.5': 'mariadb',
+    'mysql-server-5.5': 'mariadb-server',
+    'libmysql-java': 'mysql-connector-java',
+    'default-jre': 'java',
+    'tftpd-hpa': 'tftp-server',
     'apache2': 'httpd',
     'libapache2-mod-wsgi': 'mod_wsgi',
-    'libffi-dev': 'libffi-devel',
     'gearman-job-server': 'gearmand',
-    }
+    'stunnel4': 'stunnel',
+    'snmpd': 'net-snmp',
+    'snmp-mibs-downloader': '',
+    'lm-sensors': 'lm_sensors',
+    'nagios-plugins-basic': 'nagios-plugins-all',
+    'nfs-kernel-server': 'nfs-utils',
+    # openstack mappings
+    'openstack-neutron-dhcp-agent': 'openstack-neutron',
+}
 
 for arg in sys.argv[1:]:
-    print(package_map.get(arg, arg))
+    if arg not in package_map and arg.endswith('-dev'):
+        # convert -dev into devel
+        print('%s%s' % (arg, 'el'))
+    else:
+        print(package_map.get(arg, arg))
 sys.exit(0)

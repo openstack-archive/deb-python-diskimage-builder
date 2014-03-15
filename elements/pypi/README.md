@@ -1,22 +1,24 @@
 Inject a PyPI mirror
 ====================
 
-Bind mounts a PyPI mirror from ~/.cache/image-create/pypi/mirror into the build
-environment and temporarily overwrites /root/.pip.conf and .pydistutils.cfg to
-use it.
+Use a custom PyPI mirror to build images. The default is to bind mount one from
+~/.cache/image-create/pypi/mirror into the build environment. The element
+temporarily overwrites /root/.pip.conf and .pydistutils.cfg to use it.
 
-When online, the master pypi index is supplied as an extra-url, so uncached
-dependencies will still be available. When offline, only the mirror is used - a
-stale mirror will cause build failures.
+When online, the official pypi.python.org pypi index is supplied as an
+extra-url, so uncached dependencies will still be available. When offline, only
+the mirror is used - be warned that a stale mirror will cause build failures.
 
-[jeepyb](https://git.openstack.org/cgit/openstack-infra/jeepyb) can be useful in making a
+To use an arbitrary mirror set PYPI\_MIRROR\_URL=http[s]://somevalue/
+
+[pypi-mirror](https://git.openstack.org/cgit/openstack-infra/pypi-mirror) can be useful in making a
 partial PyPI mirror suitable for building images. For instance:
 
  * sudo apt-get install  libxml2-dev libxslt-dev libmysqlclient-dev libpq-dev \
    libnspr4-dev pkg-config libsqlite3-dev libzmq-dev libffi-dev libldap2-dev \
    libsasl2-dev
 
- * pip install git+https://git.openstack.org/openstack-infra/jeepyb
+ * pip install git+https://git.openstack.org/openstack-infra/pypi-mirror
 
  * cat << EOF > mirror.yaml
    cache-root: /home/USER/.cache/image-create/pypi/download
