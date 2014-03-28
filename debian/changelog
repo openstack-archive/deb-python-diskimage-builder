@@ -1,3 +1,12 @@
+python-diskimage-builder (0.1.10-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+  * Add debian/clean file to cleanup egg-info and .testrepository directory.
+  * debian/gbp.conf: Don't use pristine-tar explicit.
+  * debian/control: Add python3 packages to Build-Depends.
+
+ -- Thomas Bechtold <toabctl@debian.org>  Fri, 28 Mar 2014 16:34:31 +0100
+
 python-diskimage-builder (0.1.8-2) experimental; urgency=medium
 
   * Added missing subunit build-depends.

@@ -1,0 +1,2 @@
+diskimage_builder.egg-info/*
+.testrepository/*
