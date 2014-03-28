@@ -21,7 +21,7 @@ import sys
 
 # Manually maintained for brevity; consider making this compiled from
 # distromatch or other rich data sources.
-# TripleO service name on the left, Fedora on the right.
+# TripleO service name on the left, Fedora/RHEL on the right.
 service_map = {
     'cinder-api': 'openstack-cinder-api',
     'cinder-scheduler': 'openstack-cinder-scheduler',
@@ -34,7 +34,7 @@ service_map = {
     'heat-engine': 'openstack-heat-engine',
     'keystone': 'openstack-keystone',
     'libvirt-bin': 'libvirtd',
-    'mysql': 'mysqld',
+    'mysql': ['mysqld', 'mariadb'],
     'nova-conductor': 'openstack-nova-conductor',
     'nova-api': 'openstack-nova-api',
     'nova-cert': 'openstack-nova-cert',
@@ -65,5 +65,17 @@ for arg in sys.argv[1:]:
     if os.path.exists('/lib/systemd/system/%s.service' % arg):
         print(arg)
     else:
-        print(service_map.get(arg, arg))
+        mapping = service_map.get(arg, arg)
+        # Handle cases where a service may map to multiple names depending on
+        # which specific distribution we're using.
+        if isinstance(mapping, list):
+            for name in mapping:
+                if os.path.exists('/lib/systemd/system/%s.service' % name):
+                    print(name)
+                    break
+            else:
+                # We didn't find a match for any of the mappings.
+                print(arg)
+        else:
+            print(mapping)
 sys.exit(0)

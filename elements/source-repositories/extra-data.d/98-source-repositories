@@ -2,6 +2,21 @@
 
 set -eu
 
+# If the old cache exists, move it to the new name
+function make_new_cache(){
+    local OLD_CACHE_BASE=$1
+    local CACHE_BASE=$2
+
+    # If the old cache name exists, move it to the new cache name
+    if [ -e "$OLD_CACHE_BASE" ] ; then
+        if [ ! -e "$CACHE_BASE" ] ; then
+            mv -n $OLD_CACHE_BASE $CACHE_BASE
+        else
+            echo "Not replacing new cache location with old cache"
+        fi
+    fi
+}
+
 # Gets repositories or individual files listed in the a repository file
 # and places them in the specified destination path.
 # The format of the repository file is one or more lines matching
@@ -12,7 +27,9 @@ function get_repos_for_element(){
 
     local REGEX="^([^ ]+) (git|tar|file|package) ?(/[^ ]+)? ?([^ ]+)? ?([^ ]*)$"
 
-    while read line ; do
+    while read line; do
+        # expand variables
+        line=$(eval echo $line)
 
         # ignore blank lines and lines beginning in '#'
         [[ "$line" == \#* ]] || [[ -z "$line" ]] && continue
@@ -29,20 +46,32 @@ function get_repos_for_element(){
             local REPO_SUB_DIRECTORY=$(dirname $REPO_DEST)
 
             # REPOTYPE can be overridden with DIB_REPOTYPE_{name}
-            local REPOTYPE_OVERRIDE=DIB_REPOTYPE_${REPONAME//-/_}
+            local REPOTYPE_OVERRIDE=DIB_REPOTYPE_${REPONAME//[^A-Za-z0-9]/_}
             REPOTYPE=${!REPOTYPE_OVERRIDE:-$REPOTYPE}
 
             # REPOLOCATION can be overridden with DIB_REPOLOCATION_{name}
-            local REPOLOCATION_OVERRIDE=DIB_REPOLOCATION_${REPONAME//-/_}
+            local REPOLOCATION_OVERRIDE=DIB_REPOLOCATION_${REPONAME//[^A-Za-z0-9]/_}
             REPOLOCATION=${!REPOLOCATION_OVERRIDE:-$REPOLOCATION}
 
             # REPOREF can be overridden with DIB_REPOREF_{name}
-            local REPOREF_OVERRIDE=DIB_REPOREF_${REPONAME//-/_}
+            local REPOREF_OVERRIDE=DIB_REPOREF_${REPONAME//[^A-Za-z0-9]/_}
             REPOREF=${!REPOREF_OVERRIDE:-$REPOREF}
 
             # Determine a unique cache path for this repo
             CACHE_NAME=$(echo "${REPOTYPE}_${REPOLOCATION}" | sha1sum | awk '{ print $1 }' )
-            CACHE_PATH=~/.cache/image-create/repository-sources/$CACHE_NAME
+            OLD_CACHE_PATH=${CACHE_BASE}/${CACHE_NAME}
+            # Add the repo name to the sha1sum for readability
+            CACHE_NAME=${REPONAME//[^A-Za-z0-9]/_}_${CACHE_NAME}
+            CACHE_PATH=${CACHE_BASE}/$CACHE_NAME
+            make_new_cache $OLD_CACHE_PATH $CACHE_PATH
+
+            # Return if install type is not source
+            local INSTALL_TYPE_VAR=DIB_INSTALLTYPE_${REPONAME//[^A-Za-z0-9]/_}
+            local INSTALL_TYPE=${!INSTALL_TYPE_VAR:-source}
+            if [ ! $INSTALL_TYPE = "source" ]; then
+                echo "$REPONAME install type not set to source"
+                continue
+            fi
 
             case $REPOTYPE in
             git)
@@ -64,7 +93,7 @@ function get_repos_for_element(){
                     mv ${CACHE_PATH}{.tmp,}
                 fi
 
-                HAS_REF=$(git --git-dir=$CACHE_PATH/.git show-ref $REPOREF || true)
+                HAS_REF=$(git --git-dir=$CACHE_PATH/.git name-rev $REPOREF 2>/dev/null || true)
                 if [ -z "$DIB_OFFLINE" -o -z "$HAS_REF" ] ; then
                     echo "Updating cache of $REPOLOCATION in $CACHE_PATH with ref $REPOREF"
                     git --git-dir=$CACHE_PATH/.git fetch --update-head-ok $REPOLOCATION ${REPOREF}:${REPOREF}
@@ -75,7 +104,12 @@ function get_repos_for_element(){
                 pushd $REPO_DEST
                 sudo git fetch $CACHE_PATH $REPOREF
                 sudo git reset --hard FETCH_HEAD
+                # Get the reference in use
+                git_ref=$(git rev-parse FETCH_HEAD)
                 popd
+
+                # Write the reference being used into the source-repositories manifest
+                echo "$REPONAME git $REPOPATH $REPOLOCATION $git_ref" >> $GIT_MANIFEST
                 ;;
             tar)
                 # The top level directory of the tarball mightn't have a fixed name i.e.
@@ -110,9 +144,6 @@ function get_repos_for_element(){
                     sudo curl $REPOLOCATION -o $REPO_DEST
                 fi
                 ;;
-            package)
-                echo "$REPONAME set to package source type"
-                ;;
             *)
                 echo "Unsupported repository type: $REPOTYPE"
                 return 1
@@ -123,20 +154,6 @@ function get_repos_for_element(){
             # elements (like a pypi dependency cache).
             echo "$REPOPATH" | sudo dd of=$TMP_MOUNT_PATH/etc/dib-source-repositories oflag=append conv=notrunc
 
-            # Save the $REPOTYPE used so that it can be used later by install.d
-            if [ "$REPOTYPE" = "package" ]; then
-                REPOINSTALLTYPE="package"
-            else
-                REPOINSTALLTYPE="source"
-            fi
-
-            # Create symlink for correct install type
-            pushd $TMP_HOOKS_PATH/install.d
-            if [ -e $REPONAME-$REPOINSTALLTYPE-install ]; then
-                ln -sf $REPONAME-$REPOINSTALLTYPE-install/* .
-            fi
-            popd
-
         else
             echo "Couldn't parse '$line' as a source repository"
             return 1
@@ -144,9 +161,23 @@ function get_repos_for_element(){
     done < $REPO_SOURCES
 }
 
-mkdir -p ~/.cache/image-create/repository-sources/
+CACHE_BASE=~/.cache/image-create/source-repositories
+OLD_CACHE_BASE=~/.cache/image-create/repository-sources
+make_new_cache $OLD_CACHE_BASE $CACHE_BASE
+mkdir -p $CACHE_BASE
+# Use the IMAGE_NAME from the calling script, and make it unique with the temporary path
+GIT_MANIFEST_NAME=dib-git-manifest-$(basename ${IMAGE_NAME})
+GIT_MANIFEST_CACHE_NAME=${GIT_MANIFEST_NAME}_$(dirname ${TMP_MOUNT_PATH##*.})
+GIT_MANIFEST=$CACHE_BASE/${GIT_MANIFEST_CACHE_NAME}
+rm -f $GIT_MANIFEST
 
 # Get source repositories for the target
 for _SOURCEREPO in $(find $TMP_HOOKS_PATH -maxdepth 1 -name "source-repository-*" -not -name '*~'); do
     get_repos_for_element $_SOURCEREPO
 done
+
+# Copy the manifest into the image if it exists (there may be no git repositories used)
+if [ -e "$GIT_MANIFEST" ] ; then
+    sudo cp $GIT_MANIFEST $TMP_MOUNT_PATH/etc/$GIT_MANIFEST_NAME
+    sudo mv $GIT_MANIFEST $(dirname ${IMAGE_NAME})/$GIT_MANIFEST_NAME
+fi

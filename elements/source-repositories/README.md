@@ -23,8 +23,16 @@ diskimage-builder which can change the details registered by the element, these 
     DIB_REPOLOCATION_<name> : change the registered location
     DIB_REPOREF_<name>      : change the registered reference
 
-for example if you would like diskimage-builder to get ironic from a local
+For example if you would like diskimage-builder to get ironic from a local
 mirror you could set DIB_REPOLOCATION_ironic=git://localgitserver/ironic.git
+
+*As you can see above, the \<name\> of the repo is used in several bash
+variables. In order to make this syntactically feasible, any characters not in
+the set \[A-Za-z0-9_\] will be converted to \_*
+
+*For instance, a repository named "diskimage-builder" would set a variable called
+"DIB_REPOTYPE_diskimage_builder"*
+
 
 Alternatively if you would like to use the keystone element and build an image with
 keystone from a stable branch then you would set DIB_REPOREF_keystone=stable/grizzly
@@ -35,6 +43,9 @@ fetch/pull section of a review. For example:
 
     DIB_REPOLOCATION_nova=https://review.openstack.org/openstack/nova
     DIB_REPOREF_nova=refs/changes/72/61972/8
+
+Additionally, the lines in the source-repository scripts are eval'd, so they
+may contain environment variables.
 
 Git sources will be cloned to \<destination\>
 
