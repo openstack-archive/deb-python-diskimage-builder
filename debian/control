@@ -28,7 +28,12 @@ Homepage: https://git.openstack.org/cgit/openstack/diskimage-builder
 Package: python-diskimage-builder
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: python-babel (>= 1.3), ${misc:Depends}, ${python:Depends}
+Depends: python-babel (>= 1.3),
+         ${misc:Depends},
+         ${python:Depends},
+         kpartx,
+         qemu-img,
+         debootstrap,
 Recommends: ${python:Recommends}
 Description: image building tools for Openstack
  Diskimage-builder tools are the components of TripleO that are responsible for
