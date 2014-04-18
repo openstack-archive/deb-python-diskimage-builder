@@ -1,6 +1,6 @@
-python-diskimage-builder (0.1.10-1) UNRELEASED; urgency=medium
+python-diskimage-builder (0.1.13-2) unstable; urgency=medium
 
-  * New upstream release.
+  [ Thomas Bechtold ]
   * Add debian/clean file to cleanup egg-info and .testrepository directory.
   * debian/gbp.conf: Don't use pristine-tar explicit.
   * debian/control:
@@ -9,7 +9,10 @@ python-diskimage-builder (0.1.10-1) UNRELEASED; urgency=medium
     - Add debootstrap to Depends. Needed to build Debian images.
   * debian/watch: Use github tags instead of pypi.
 
- -- Thomas Bechtold <toabctl@debian.org>  Sun, 30 Mar 2014 09:02:44 +0200
+  [ Thomas Goirand ]
+  * New upstream release.
+
+ -- Thomas Goirand <zigo@debian.org>  Fri, 18 Apr 2014 10:46:29 +0000
 
 python-diskimage-builder (0.1.8-2) experimental; urgency=medium
 
