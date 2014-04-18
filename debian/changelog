@@ -5,12 +5,14 @@ python-diskimage-builder (0.1.13-2) unstable; urgency=medium
   * debian/gbp.conf: Don't use pristine-tar explicit.
   * debian/control:
     - Add python3 packages to Build-Depends.
-    - Add kpartx and qemu-img to Depends according to README.md.
+    - Add kpartx to Depends according to README.md.
     - Add debootstrap to Depends. Needed to build Debian images.
   * debian/watch: Use github tags instead of pypi.
 
   [ Thomas Goirand ]
   * New upstream release.
+  * Uploading to unstable.
+  * Adds qemu-utils (and *NOT* qemu-img) as depends.
 
  -- Thomas Goirand <zigo@debian.org>  Fri, 18 Apr 2014 10:46:29 +0000
 
