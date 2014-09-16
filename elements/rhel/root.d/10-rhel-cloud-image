@@ -1,15 +1,16 @@
 #!/bin/bash
 
 set -eu
+set -o pipefail
 
 [ -n "$ARCH" ]
 [ -n "$TARGET_ROOT" ]
 
 if [ 'amd64' = "$ARCH" ] ; then
-  ARCH="x86_64"
+    ARCH="x86_64"
 fi
 
-DIB_RELEASE=${DIB_RELEASE:-"6.5-20140121.0"}
+DIB_RELEASE=${DIB_RELEASE:-"6.5-20140603.0"}
 DIB_CLOUD_IMAGES=${DIB_CLOUD_IMAGES:-http://rhn.redhat.com}
 BASE_IMAGE_FILE=${BASE_IMAGE_FILE:-rhel-guest-image-$DIB_RELEASE.x86_64.qcow2}
 BASE_IMAGE_TAR=$DIB_RELEASE-rhel-server-$ARCH-latest.tgz
@@ -28,7 +29,7 @@ else
         EACTION="rm -r $WORKING"
         trap "$EACTION" EXIT
         RAW_FILE=$(basename $BASE_IMAGE_FILE)
-        RAW_FILE=${RAW_FILE#.qcow2}.raw
+        RAW_FILE=${RAW_FILE%.qcow2}.raw
         qemu-img convert -f qcow2 -O raw $DIB_IMAGE_CACHE/$BASE_IMAGE_FILE $WORKING/$RAW_FILE
         MAGIC_BIT=p1
         # NOTE: On RHEL, partprobe of /dev/loop0 does not create /dev/loop0p2,
@@ -37,8 +38,8 @@ else
         export LOOPDEV=$LOOPDEV
         echo "Loop device is set to: $LOOPDEV"
         if ! timeout 5 sh -c "while ! [ -e /dev/mapper/$LOOPDEV ]; do sleep 1; done"; then
-            echo "Error: Could not find /dev/mapper/$LOOPDEV"
-            exit 1
+                echo "Error: Could not find /dev/mapper/$LOOPDEV"
+                exit 1
         fi
         EACTION="sudo kpartx -d $WORKING/$RAW_FILE;$EACTION"
         trap "$EACTION" EXIT
@@ -54,6 +55,3 @@ fi
 # Extract the base image (use --numeric-owner to avoid UID/GID mismatch between
 # image tarball and host OS e.g. when building RHEL image on an openSUSE host)
 sudo tar -C $TARGET_ROOT --numeric-owner -xzf $DIB_IMAGE_CACHE/$BASE_IMAGE_TAR
-if [ -e "$TARGET_ROOT/lost+found" ]; then
-  sudo rmdir $TARGET_ROOT/lost+found
-fi

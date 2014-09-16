@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -eux
+set -o pipefail
+
+package-installs -d $(dirname $0)

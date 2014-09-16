@@ -28,19 +28,27 @@ function tmpfs_check() {
 
 function mk_build_dir () {
   TMP_BUILD_DIR=$(mktemp -t -d --tmpdir=${TMP_DIR:-/tmp} image.XXXXXXXX)
+  TMP_IMAGE_DIR=$(mktemp -t -d --tmpdir=${TMP_DIR:-/tmp} image.XXXXXXXX)
   [ $? -eq 0 ] || die "Failed to create tmp directory"
   export TMP_BUILD_DIR
   if tmpfs_check ; then
     sudo mount -t tmpfs tmpfs $TMP_BUILD_DIR
+    sudo mount -t tmpfs tmpfs $TMP_IMAGE_DIR
   fi
-  sudo chown $(id -u):$(id -g) $TMP_BUILD_DIR
+  sudo chown $(id -u):$(id -g) $TMP_BUILD_DIR $TMP_IMAGE_DIR
   trap cleanup EXIT
   echo Building in $TMP_BUILD_DIR
-  export TMP_IMAGE_PATH=$TMP_BUILD_DIR/image.raw
+  export TMP_IMAGE_PATH=$TMP_IMAGE_DIR/image.raw
   export TMP_HOOKS_PATH=$TMP_BUILD_DIR/hooks
 }
 
 function finish_image () {
+    if [ -f $1 -a ${OVERWRITE_OLD_IMAGE:-0} -eq 0 ]; then
+      old_image="${1%.*}"-$(date +%Y.%m.%d-%H.%M.%S).${1##*.}
+      echo "Old image found. Renaming it to $old_image"
+      mv "$1" "$old_image"
+    fi
+
     mv $TMP_IMAGE_PATH $1
     cleanup_dirs
     # All done!
@@ -49,17 +57,7 @@ function finish_image () {
 }
 
 function save_image () {
-    # TODO: this really should rename the old file
-    if [ -f  $1 ] ; then
-       echo "Old Image file Found REMOVING"
-       rm -f $1
-    fi
-
-    cp $TMP_IMAGE_PATH $1
-    cleanup_dirs
-    # All done!
-    trap EXIT
-    echo "Image file $1 created..."
+    finish_image $1
 }
 
 function element_pre_check() {
@@ -97,7 +95,7 @@ function first_boot_deprecated_message() {
 function generate_hooks () {
   mkdir -p $TMP_HOOKS_PATH
   for _ELEMENT in $IMAGE_ELEMENT ; do
-    for dir in $(echo $ELEMENTS_PATH | tr ":" " ") ; do
+    for dir in ${ELEMENTS_PATH//:/ } ; do
       element_pre_check $dir/$_ELEMENT || continue
       cp -t $TMP_HOOKS_PATH -a $dir/$_ELEMENT/* ;
       break
@@ -190,11 +188,11 @@ function mount_qcow_image() {
 function cleanup_dirs () {
     sudo rm -rf $TMP_BUILD_DIR/built
     sudo rm -rf $TMP_BUILD_DIR/mnt
-    sudo umount -f  $TMP_BUILD_DIR || true
-    rm -rf $TMP_BUILD_DIR
+    sudo umount -f  $TMP_BUILD_DIR $TMP_IMAGE_DIR || true
+    rm -rf $TMP_BUILD_DIR $TMP_IMAGE_DIR
 }
 
-# Run a directory of hooks outside the target.
+# Run a directory of hooks outside the target (that is, no chrooting).
 function run_d() {
     check_element
     check_break before-$1 bash
@@ -240,6 +238,7 @@ function arg_to_elements() {
   echo "Building elements: $IMAGE_ELEMENT"
 
   IMAGE_ELEMENT=$($SCRIPT_HOME/element-info --expand-dependencies $IMAGE_ELEMENT)
+  export IMAGE_ELEMENT
 
   echo "Expanded element dependencies to: $IMAGE_ELEMENT"
 }
@@ -252,7 +251,7 @@ function create_base () {
     if [ -z "$(ls $TMP_MOUNT_PATH | grep -v '^lost+found\|tmp$')" ] ; then
         # No root element copied in. Note the test above allows
         # root.d elements to put things in /tmp
-        echo "Please include at least one distribution root element."
+        echo "Failed to deploy the root element."
         exit 1
     fi
 
@@ -266,8 +265,7 @@ function create_base () {
     sudo touch $TMP_MOUNT_PATH/etc/resolv.conf
     sudo chmod 777 $TMP_MOUNT_PATH/etc/resolv.conf
     # use system configured resolv.conf if available to support internal proxy resolving
-    if [ -e /etc/resolv.conf ]
-    then
+    if [ -e /etc/resolv.conf ]; then
         cat /etc/resolv.conf > $TMP_MOUNT_PATH/etc/resolv.conf
     else
         echo nameserver 8.8.8.8 > $TMP_MOUNT_PATH/etc/resolv.conf

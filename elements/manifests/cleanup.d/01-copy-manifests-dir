@@ -1,7 +1,6 @@
 #!/bin/bash
 #
 # Copyright 2014 Hewlett-Packard Development Company, L.P.
-# All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -16,11 +15,16 @@
 # under the License.
 #
 set -eux
+set -o pipefail
 
 if [ -d $TMP_MOUNT_PATH/${DIB_MANIFEST_IMAGE_DIR} ]; then
     # Move the dib_environment and dib_arguments files into the manifests dir
-    sudo mv $TMP_MOUNT_PATH/etc/dib_arguments $TMP_MOUNT_PATH/${DIB_MANIFEST_IMAGE_DIR}
-    sudo mv $TMP_MOUNT_PATH/etc/dib_environment $TMP_MOUNT_PATH/${DIB_MANIFEST_IMAGE_DIR}
+    if [ -e $TMP_MOUNT_PATH/etc/dib_arguments ]; then
+        sudo mv $TMP_MOUNT_PATH/etc/dib_arguments $TMP_MOUNT_PATH/${DIB_MANIFEST_IMAGE_DIR}
+    fi
+    if [ -e $TMP_MOUNT_PATH/etc/dib_environment ]; then
+        sudo mv $TMP_MOUNT_PATH/etc/dib_environment $TMP_MOUNT_PATH/${DIB_MANIFEST_IMAGE_DIR}
+    fi
     mkdir -p ${DIB_MANIFEST_SAVE_DIR}
     cp --no-preserve=ownership -rv $TMP_MOUNT_PATH/${DIB_MANIFEST_IMAGE_DIR} \
         ${DIB_MANIFEST_SAVE_DIR}

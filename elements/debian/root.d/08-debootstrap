@@ -1,7 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Copyright 2014 Hewlett-Packard Development Company, L.P.
-# All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -16,13 +15,14 @@
 # under the License.
 #
 set -eu
-if [ -f ${TARGET_ROOT}/.distro-name ] ; then
-    DISTRO_NAME=$(cat ${TARGET_ROOT}/.distro-name)
-else
-    DISTRO_NAME=debian
+set -o pipefail
+if [ -f ${TARGET_ROOT}/.extra_settings ] ; then
+    . ${TARGET_ROOT}/.extra_settings
 fi
+DISTRO_NAME=${DISTRO_NAME:-debian}
 DIB_RELEASE=${DIB_RELEASE:-unstable}
-DEBOOTSTRAP_TARBALL=$DIB_IMAGE_CACHE/debootstrap-${DISTRO_NAME}-${DIB_RELEASE}-${ARCH}.tar.gz
+DIB_DEBIAN_ALT_INIT_PACKAGE=${DIB_DEBIAN_ALT_INIT_PACKAGE:-sysvinit}
+DEBOOTSTRAP_TARBALL=$DIB_IMAGE_CACHE/debootstrap-${DISTRO_NAME}-${DIB_DEBIAN_ALT_INIT_PACKAGE}-${DIB_RELEASE}-${ARCH}.tar.gz
 if [ -n "${DIB_DEBIAN_MIRROR:-}" ]; then
     echo "Use of DIB_DEBIAN_MIRROR environment variable to configure mirror is deprecated."
     echo "Please use DIB_DISTRIBUTION_MIRROR instead."
@@ -32,30 +32,47 @@ DIB_DISTRIBUTION_MIRROR=${DIB_DISTRIBUTION_MIRROR:-http://http.debian.net/debian
 http_proxy=${http_proxy:-}
 
 set -x
-if [ -n "$DIB_OFFLINE" ] && [ -f $DEBOOTSTRAP_TARBALL ] ; then
+if [ -n "$DIB_OFFLINE" -o -n "${DIB_DEBIAN_USE_DEBOOTSTRAP_CACHE:-}" ] && [ -f $DEBOOTSTRAP_TARBALL ] ; then
     echo $DEBOOTSTRAP_TARBALL found in cache. Using.
     sudo tar -C $TARGET_ROOT --numeric-owner -xzf $DEBOOTSTRAP_TARBALL
 else
     echo Building new tarball for Debian $DIB_RELEASE ARCH=$ARCH
     ADD_PACKAGES=sudo,adduser,locales,openssh-server,file,less,kbd,curl,rsync,bash-completion,linux-image-amd64
-    if [ -f ${TARGET_ROOT}/.extra-packages ] ; then
-        ADD_PACKAGES=${ADD_PACKAGES},$(cat ${TARGET_ROOT}/.extra-packages)
+
+    KEYRING_OPT=
+    if [ -n "${DIB_DEBIAN_KEYRING:-}" ] ; then
+        KEYRING_OPT="--keyring=${DIB_DEBIAN_KEYRING}"
     fi
+
     sudo sh -c "http_proxy=$http_proxy debootstrap --verbose \
         --arch=${ARCH} \
         --include=${ADD_PACKAGES} \
+        $KEYRING_OPT \
         $DIB_RELEASE \
         $TARGET_ROOT \
-        $DIB_DISTRIBUTION_MIRROR"
+        $DIB_DISTRIBUTION_MIRROR \
+        ${DIB_DEBIAN_DEBOOTSTRAP_SCRIPT:-}"
     echo "Customizing result for cloud use"
 
-    CLOUD_INIT_PACKAGES="cloud-init cloud-utils cloud-initramfs-growroot"
+    apt_get_bp_extra_opts=
     if [ "$DIB_RELEASE" = "wheezy" ]; then
         sudo sh -c "echo deb $DIB_DISTRIBUTION_MIRROR wheezy-backports main >> ${TARGET_ROOT}/etc/apt/sources.list"
         sudo chroot ${TARGET_ROOT} apt-get update
-        sudo chroot ${TARGET_ROOT} apt-get install -y -t wheezy-backports $CLOUD_INIT_PACKAGES
-    else # unstable
-        sudo chroot ${TARGET_ROOT} apt-get install -y $CLOUD_INIT_PACKAGES
+        cat << EOF | sudo tee -a ${TARGET_ROOT}/etc/network/interfaces
+source /etc/network/interfaces.d/*
+EOF
+        apt_get_bp_extra_opts="-t wheezy-backports"
+    fi
+
+    CLOUD_INIT_PACKAGES="cloud-init cloud-utils cloud-initramfs-growroot"
+    sudo sh -c "http_proxy=$http_proxy chroot ${TARGET_ROOT} apt-get install -y $apt_get_bp_extra_opts $CLOUD_INIT_PACKAGES"
+
+    if [ "$DIB_DEBIAN_ALT_INIT_PACKAGE" != "sysvinit" ]; then
+        # To avoid a conflict against an essential package, we need to remove sysvinit first
+        sudo chroot ${TARGET_ROOT} dpkg --purge --force remove-essential sysvinit
+        sudo sh -c "http_proxy=$http_proxy chroot ${TARGET_ROOT}  apt-get install -y $apt_get_bp_extra_opts $DIB_DEBIAN_ALT_INIT_PACKAGE"
+        sudo sh -c "printf \"Package: sysvinit\nPin: origin ""\nPin-Priority: -1\n\" > \
+            ${TARGET_ROOT}/etc/apt/preferences.d/sysvinit > ${TARGET_ROOT}/etc/apt/preferences.d/sysvinit"
     fi
 
     sudo sed -i "s/PermitRootLogin yes/PermitRootLogin without-password/" $TARGET_ROOT/etc/ssh/sshd_config
@@ -72,6 +89,16 @@ LABEL=cloudimg-rootfs / ext4 errors=remount-ro 0 1
     # specify a hostname so that cloud-init does not default to (None)
     sudo sh -c "echo 'hostname: debian' > ${TARGET_ROOT}/etc/cloud/cloud.cfg.d/01_hostname.cfg"
 
+    # cloud images expect eth0 to use dhcp.
+    sudo mkdir -p ${TARGET_ROOT}/etc/network/interfaces.d
+    cat << EOF | sudo tee ${TARGET_ROOT}/etc/network/interfaces.d/eth0
+# The primary network interface
+auto eth0
+iface eth0 inet dhcp
+EOF
+
     echo Caching debootstrap result in $DEBOOTSTRAP_TARBALL
-    sudo tar -C $TARGET_ROOT -zcf $DEBOOTSTRAP_TARBALL .
+    sudo tar -C $TARGET_ROOT -zcf $DEBOOTSTRAP_TARBALL --exclude='./tmp/*' .
 fi
+
+sudo rm -f ${TARGET_ROOT}/.extra_settings

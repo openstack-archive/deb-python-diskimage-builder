@@ -23,13 +23,19 @@ What tools are there?
   Element dependencies are automatically included. Support for other
   architectures depends on your environment being able to run binaries of that 
   platform. For instance, to enable armhf on Ubuntu install the qemu-user-static
-  package.
+  package. The default output format from disk-image-create is qcow2. To instead
+  output a tarball pass in "-t tar". This tarball could then be used as an image
+  for a linux container(see docs/docker.md).
 
 * ramdisk-image-create -o filename {element} [{element} ...] : Create a kernel+
   ramdisk pair for running maintenance on bare metal machines (deployment,
   inventory, burnin etc).
 
-    ramdisk-image-create -o deploy.ramdisk deploy
+    To generate kernel+ramdisk pair for use with nova-baremetal, use
+    ramdisk-image-create -o deploy.ramdisk deploy-baremetal
+
+    To generate kernel+ramdisk pair for use with ironic, use
+    ramdisk-image-create -o deploy.ramdisk deploy-ironic
 
 * disk-image-get-kernel filename : **DEPRECATED** Extract the appropriate
   kernel and ramdisk to use when doing PXE boot using filename as the image
@@ -51,7 +57,7 @@ Installation
 * Clone the repository locally, then add bin to your path.
 
 * Make sure you have qemu-img (qemu-utils package on Ubuntu/Debian,
-  qemu on Fedora/RHEL) and kpartx installed.
+  qemu on Fedora/RHEL/openSUSE) and kpartx installed.
 
 Invocation
 ==========
@@ -68,16 +74,22 @@ It's a colon (:) separated path list, and it will work in a first path/element f
 first served approach. The included elements tree is used when no path is supplied,
 and is added to the end of the path if a path is supplied.
 
+By default, the image building scripts will not overwrite existing disk images,
+allowing you to compare the newly built image with the existing one. To change
+that behaviour, set the variable OVERWRITE\_OLD\_IMAGE to any value that isn't
+0.
+
 Requirements
 ============
 
 If you have 4GB of available physical RAM\*, or more, diskimage-builder will
 create a tmpfs mount to build the image in. This will improve image build time
 by building in RAM. This can be disabled completely by passing --no-tmpfs to
-disk-image-create. ramdisk-image-create does not use a tmpfs mount. If tmpfs
-is not used, you will need enough room in /tmp to store two uncompressed
-cloud images. If you do have tmpfs, you will still need /tmp space for one
-uncompressed cloud image and about 20% of that for working files.
+disk-image-create. ramdisk-image-create builds a regular image and then within
+that does ramdisk creation. If tmpfs is not used, you will need enough room in
+/tmp to store two uncompressed cloud images. If you do have tmpfs, you will
+still need /tmp space for one uncompressed cloud image and about 20% of that
+for working files.
 
 \* As reported by /proc/meminfo MemTotal
 
@@ -99,7 +111,8 @@ offline mode.
 Base images
 -----------
 
-These are cached by the standard elements - fedora, redhat, ubuntu.
+These are cached by the standard elements - fedora, redhat, ubuntu,
+debian and opensuse.
 
 source-repositories
 -------------------
@@ -182,12 +195,13 @@ element adds support for mellanox infiniband hardware to both the deploy
 ramdisk and the built images.
 
 Images must specify a base distribution image element. Currently base
-distribution elements exist for fedora, rhel, and ubuntu. Other
-distributions may be added in future, the infrastructure deliberately
-makes few assumptions about the exact operating system in use.
-The base image has opensshd running (a new key generated on first boot)
-and accepts keys via the cloud metadata service, loading them into the
-distribution specific default user account.
+distribution elements exist for fedora, rhel, ubuntu, debian and
+opensuse. Other distributions may be added in future, the
+infrastructure deliberately makes few assumptions about the exact
+operating system in use.  The base image has opensshd running (a new
+key generated on first boot) and accepts keys via the cloud metadata
+service, loading them into the distribution specific default user
+account.
 
 The goal of a built image is to have any global configuration ready to roll,
 but nothing that ties it to a specific cloud instance: images should be able to
@@ -316,12 +330,25 @@ two-digit numeric prefix, and are executed in numeric order.
  * runs: outside chroot
  * inputs: $ARCH=i386|amd64|armhf $TARGET\_ROOT=/path/to/target/workarea
 
+### Other Subdirectories ###
+
+Elements may have other subdirectories that are processed by specific elements
+rather than the diskimage-builder tools themselves.
+
+One example of this is the ``bin`` directory.  The ``rpm-distro``, ``dpkg`` and
+``opensuse`` elements install all files found in the ``bin`` directory into
+``/usr/local/bin`` within the image as executable files.
+
 ### Environment Variables ###
 
 To set environment variables for other hooks, add a file to environment.d.
 This directory contains bash script snippets that are sourced before running
 scripts in each phase.
 
+DIB exposes an internal IMAGE\_ELEMENT variable which provides elements access
+to the full set of elements that are included in the image build. This can
+be used to process local in-element files across all the elements
+(pkg-map for example).
 
 ### Dependencies ###
 
@@ -356,7 +383,20 @@ Ramdisk elements support the following files in their element directories:
 * init.d : POSIX shell script fragments that will be appended to the default
   script executed as the ramdisk is booted (/init).
 
+* ramdisk-install.d : called to copy files into the ramdisk. The variable
+  TMP\_MOUNT\_PATH points to the root of the tree that will be packed into
+  the ramdisk.
+
 * udev.d : udev rules files that will be copied into the ramdisk.
+
+### Element coding standard ###
+
+- lines should not include trailing whitespace.
+- there should be no hard tabs in the file.
+- indents are 4 spaces, and all indentation should be some multiple of
+  them.
+- `do` and `then` keywords should be on the same line as the if, while or
+  for conditions.
 
 Global image-build variables
 ----------------------------

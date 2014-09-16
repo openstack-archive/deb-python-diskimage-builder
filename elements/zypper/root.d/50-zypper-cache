@@ -1,10 +1,12 @@
 #!/bin/bash
 
-set -e
+set -eu
+set -o pipefail
 
 [ -n "$TARGET_ROOT" ]
 
 ZYPPER_CACHE_DIR=~/.cache/image-create/zypper
 mkdir -p $ZYPPER_CACHE_DIR
 
+sudo mkdir -p $TMP_MOUNT_PATH/var/cache/zypp
 sudo mount --bind $ZYPPER_CACHE_DIR $TMP_MOUNT_PATH/var/cache/zypp

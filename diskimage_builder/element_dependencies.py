@@ -1,5 +1,4 @@
 # Copyright 2013 Hewlett-Packard Development Company, L.P.
-# All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -44,7 +43,7 @@ def _get_set(element, fname, elements_dir=None):
 
     sys.stderr.write("ERROR: Element '%s' not found in '%s'\n" %
                      (element, elements_dir))
-    exit(-1)
+    sys.exit(-1)
 
 
 def provides(element, elements_dir=None):
@@ -99,12 +98,17 @@ def expand_dependencies(user_elements, elements_dir=None):
         check_queue.extend(deps - (final_elements | provided))
         final_elements.update(deps)
 
+    if "operating-system" not in provided:
+        sys.stderr.write(
+            "ERROR: Please include an operating system element.\n")
+        sys.exit(-1)
+
     conflicts = set(user_elements) & provided
     if conflicts:
         sys.stderr.write("ERROR: Following elements were explicitly required "
                          "but are provided by other included elements: %s\n" %
                          ", ".join(conflicts))
-        exit(-1)
+        sys.exit(-1)
     return final_elements - provided
 
 

@@ -35,7 +35,7 @@ function cleanup () {
 
 function ensure_nbd () {
     NBD=`which qemu-nbd` || true
-    if [ -z "$NBD" ];  then
+    if [ -z "$NBD" ]; then
         echo "qemu-nbd is not found in your PATH"
         echo "Please install it on your system"
         exit 1
@@ -91,18 +91,30 @@ function prepare_first_boot () {
 
 function finalise_base () {
     TARGET_ROOT=$TMP_MOUNT_PATH run_d cleanup
-    # Remove the resolv.conf we created above
-    sudo rm -f $TMP_MOUNT_PATH/etc/resolv.conf
-    # Move the original back
-    if [ -L $TMP_MOUNT_PATH/etc/resolv.conf.ORIG ] || [ -f $TMP_MOUNT_PATH/etc/resolv.conf.ORIG ] ; then
-        sudo mv $TMP_MOUNT_PATH/etc/resolv.conf.ORIG $TMP_MOUNT_PATH/etc/resolv.conf
+    # If the file has been set immutable, we probably want to keep it
+    if lsattr $TMP_MOUNT_PATH/etc/resolv.conf | grep '^....i' >/dev/null ; then
+        # We're keeping the contents of resolv.conf set in the elements,
+        # so remove the old saved file
+        sudo rm -f $TMP_MOUNT_PATH/etc/resolv.conf.ORIG
+    else
+        # Remove the resolv.conf we created above
+        sudo rm -f $TMP_MOUNT_PATH/etc/resolv.conf
+        # Move the original back
+        if [ -L $TMP_MOUNT_PATH/etc/resolv.conf.ORIG ] || [ -f $TMP_MOUNT_PATH/etc/resolv.conf.ORIG ] ; then
+            sudo mv $TMP_MOUNT_PATH/etc/resolv.conf.ORIG $TMP_MOUNT_PATH/etc/resolv.conf
+        fi
     fi
 }
 
 function compress_and_save_image () {
     # Recreate our image to throw away unnecessary data
     test $IMAGE_TYPE != qcow2 && COMPRESS_IMAGE=""
-    qemu-img convert ${COMPRESS_IMAGE:+-c} -f raw $TMP_IMAGE_PATH -O $IMAGE_TYPE $1-new
+    if [ -n "$QEMU_IMG_OPTIONS" ]; then
+        EXTRA_OPTIONS="-o $QEMU_IMG_OPTIONS"
+    else
+        EXTRA_OPTIONS=""
+    fi
+    qemu-img convert ${COMPRESS_IMAGE:+-c} -f raw $TMP_IMAGE_PATH -O $IMAGE_TYPE $EXTRA_OPTIONS $1-new
     rm $TMP_IMAGE_PATH
 
     TMP_IMAGE_PATH=$1-new
@@ -119,4 +131,43 @@ function do_extra_package_install () {
 function copy_elements_lib () {
   sudo mkdir -p $TMP_MOUNT_PATH/lib/diskimage-builder
   sudo cp -t $TMP_MOUNT_PATH/lib/diskimage-builder $_LIB/elements-functions
+}
+
+# Dig up the initrd and kernel.
+function select_boot_kernel_initrd () {
+    TARGET_ROOT=$1
+    BOOTDIR=$TARGET_ROOT/boot
+    if [ -n "${DIB_BAREMETAL_KERNEL_PATTERN:-}" -a -n "${DIB_BAREMETAL_INITRD_PATTERN:-}" ]; then
+        KERNEL=$(basename $(eval ls -1rv "$BOOTDIR/${DIB_BAREMETAL_KERNEL_PATTERN}" | head -1))
+        RAMDISK=$(basename $(eval ls -1rv "$BOOTDIR/${DIB_BAREMETAL_INITRD_PATTERN}" | head -1))
+    elif [ -f $TARGET_ROOT/etc/redhat-release ]; then
+
+        # Prioritize PAE if present
+        KERNEL=$(ls -1rv $BOOTDIR/vmlinuz* | grep PAE | grep -v debug | head -1 || echo "")
+        KERNEL=${KERNEL:-$(ls -1rv $BOOTDIR/vmlinuz* | grep -v debug | head -1 || echo "")}
+        if [ ! $KERNEL ]; then
+           echo "No suitable kernel found."
+           exit 1
+        fi
+
+        KERNEL=$(basename $KERNEL)
+        KERNEL_VERSION=${KERNEL#vmlinuz-}
+        RAMDISK=$(basename $(ls $BOOTDIR/initramfs-$KERNEL_VERSION.img) || echo "")
+        if [ ! $RAMDISK ]; then
+            echo "Can't find an initramfs for the $KERNEL_VERSION version of the kernel."
+            exit 1
+        fi
+    elif [ -f $TARGET_ROOT/etc/debian_version ]; then
+        KERNEL=$(basename $(ls -1rv $BOOTDIR/vmlinuz*generic | head -1))
+        RAMDISK=$(basename $(ls -1rv $BOOTDIR/initrd*generic | head -1))
+        # in case files with "generic" suffix were not found, fall back to default
+        KERNEL=${KERNEL:-$(basename $(ls -1rv $BOOTDIR/vmlinuz* | head -1))}
+        RAMDISK=${RAMDISK:-$(basename $(ls -1rv $BOOTDIR/initrd* | head -1))}
+    elif [ -f $TARGET_ROOT/etc/SuSE-release ]; then
+        KERNEL=$(basename $(readlink -e $BOOTDIR/vmlinuz))
+        RAMDISK=$(basename $(readlink -e $BOOTDIR/initrd))
+    else
+        echo "ERROR: Unable to detect operating system"
+        exit 1
+    fi
 }

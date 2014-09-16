@@ -1,2 +1,6 @@
 #!/bin/bash
-install-packages ccache
+
+set -eu
+set -o pipefail
+
+install-packages -m base ccache_package

@@ -1,11 +1,8 @@
 #!/bin/bash
 # Override the default /etc/apt/sources.list with $DIB_APT_SOURCES
 
-set -e
-
-# get the cloudimg version
-source $TMP_MOUNT_PATH/etc/lsb-release
-echo "Current cloudimg codename is: $DISTRIB_DESCRIPTION $DISTRIB_CODENAME"
+set -eu
+set -o pipefail
 
 # exit directly if DIB_APT_SOURCES is not defined properly
 if [ -z "$DIB_APT_SOURCES" ] ; then

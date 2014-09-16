@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -eu
+set -o pipefail
 
 # If the old cache exists, move it to the new name
 function make_new_cache(){
@@ -28,8 +29,14 @@ function get_repos_for_element(){
     local REGEX="^([^ ]+) (git|tar|file|package) ?(/[^ ]+)? ?([^ ]+)? ?([^ ]*)$"
 
     while read line; do
+        # temporarily turn off globbing '*' (since it may be used as the REPOREF for tarballs)
+        set -f
+
         # expand variables
         line=$(eval echo $line)
+
+        # restore globbing
+        set +f
 
         # ignore blank lines and lines beginning in '#'
         [[ "$line" == \#* ]] || [[ -z "$line" ]] && continue
@@ -40,7 +47,17 @@ function get_repos_for_element(){
             local REPOPATH=${BASH_REMATCH[3]}
             local REPOLOCATION=${BASH_REMATCH[4]}
             local REPO_ORIG_LOCATION=$REPOLOCATION
-            local REPOREF=${BASH_REMATCH[5]:-master}
+
+            if [ $REPONAME = "tar" -a -z "${BASH_REMATCH[5]:-}" ] ; then
+                echo "Warning: Default tarball REPOREF of '*' is deprecated; do not rely on it."
+            fi
+
+            # Default of '*' for tar repositories is deprecated; do not rely on it.
+            local REPOREF_DEFAULT_TAR=*
+            local REPOREF_DEFAULT_GIT=master
+            local REPOREF_LOOKUP_DEFAULT=REPOREF_DEFAULT_${REPOTYPE^^}
+
+            local REPOREF=${BASH_REMATCH[5]:-${!REPOREF_LOOKUP_DEFAULT:-}}
 
             local REPO_DEST=$TMP_MOUNT_PATH$REPOPATH
             local REPO_SUB_DIRECTORY=$(dirname $REPO_DEST)
@@ -96,7 +113,21 @@ function get_repos_for_element(){
                 HAS_REF=$(git --git-dir=$CACHE_PATH/.git name-rev $REPOREF 2>/dev/null || true)
                 if [ -z "$DIB_OFFLINE" -o -z "$HAS_REF" ] ; then
                     echo "Updating cache of $REPOLOCATION in $CACHE_PATH with ref $REPOREF"
-                    git --git-dir=$CACHE_PATH/.git fetch --update-head-ok $REPOLOCATION ${REPOREF}:${REPOREF}
+                    # Copy named refs (which might be outside the usual heads
+                    # pattern) - e.g. gerrit
+                    if ! git --git-dir=$CACHE_PATH/.git fetch --update-head-ok $REPOLOCATION \
+                            +${REPOREF}:${REPOREF} ; then
+                        # Copy all heads from the remote repository - this permits
+                        # using a SHA1 object reference so long as the object
+                        # reference is reachable from one of the heads. git does
+                        # not permit arbitrary sha fetching from remote servers.
+                        # This is a separate fetch to the prior one as the prior
+                        # one will fail when REPOREF is a SHA1.
+                        git --git-dir=$CACHE_PATH/.git fetch --update-head-ok $REPOLOCATION \
+                            +refs/heads/*:refs/heads/*
+                    fi
+                    # Ensure that we have a reference to the revision.
+                    git --git-dir=$CACHE_PATH/.git rev-parse -q --verify $REPOREF^{commit}
                 fi
 
                 echo "Cloning from $REPONAME cache and applying ref $REPOREF"
@@ -104,18 +135,17 @@ function get_repos_for_element(){
                 pushd $REPO_DEST
                 sudo git fetch $CACHE_PATH $REPOREF
                 sudo git reset --hard FETCH_HEAD
-                # Get the reference in use
-                git_ref=$(git rev-parse FETCH_HEAD)
+                # Get the sha in use
+                git_sha=$(git rev-parse FETCH_HEAD)
                 popd
 
-                # Write the reference being used into the source-repositories manifest
-                echo "$REPONAME git $REPOPATH $REPOLOCATION $git_ref" >> $GIT_MANIFEST
+                # Write the sha being used into the source-repositories manifest
+                echo "$REPONAME git $REPOPATH $REPOLOCATION $git_sha" >> $GIT_MANIFEST
                 ;;
             tar)
                 # The top level directory of the tarball mightn't have a fixed name i.e.
                 # it could contain version numbers etc... so we write it to a tmpdir
-                # the then move the contents into the directory we want it in, this does
-                # assume the tarball only contains a single top level directory
+                # for inspection before transferring the contents into the target directory
                 local tmpdir=$(mktemp --tmpdir=$TMP_MOUNT_PATH/tmp -d)
                 if [ -n "$CACHE_PATH" ] ; then
                     echo "Caching $REPONAME tarball from $REPOLOCATION in $CACHE_PATH"
@@ -127,9 +157,15 @@ function get_repos_for_element(){
                     echo "Fetching $REPONAME tarball from $REPOLOCATION"
                     curl $REPOLOCATION | tar -C $tmpdir -xzf -
                 fi
+
                 sudo mkdir -p $REPO_DEST
-                sudo mv $tmpdir/*/* $REPO_DEST
+
+                # A REPOREF of '.' will select the entire contents of the tarball,
+                # while '*' will select only the contents of its subdirectories.
+                sudo rsync -a --remove-source-files $tmpdir/$REPOREF/. $REPO_DEST
+
                 rm -rf $tmpdir
+
                 ;;
             file)
                 sudo mkdir -p $REPO_SUB_DIRECTORY
@@ -173,10 +209,18 @@ rm -f $GIT_MANIFEST
 
 # Get source repositories for the target
 for _SOURCEREPO in $(find $TMP_HOOKS_PATH -maxdepth 1 -name "source-repository-*" -not -name '*~'); do
-    get_repos_for_element $_SOURCEREPO
+    repo_flock=$CACHE_BASE/repositories_flock
+    (
+        echo "Getting $repo_flock: $(date)"
+        if ! flock -w 600 9 ; then
+            echo "Did not get $repo_flock: $(date)"
+            exit 1
+        fi
+        get_repos_for_element $_SOURCEREPO
+    ) 9> $repo_flock
 done
 
 # Copy the manifest into the image if it exists (there may be no git repositories used)
 if [ -e "$GIT_MANIFEST" ] ; then
-    sudo cp $GIT_MANIFEST $TMP_MOUNT_PATH/${DIB_MANIFEST_IMAGE_DIR}/$GIT_MANIFEST_NAME
+    sudo mv $GIT_MANIFEST $TMP_MOUNT_PATH/${DIB_MANIFEST_IMAGE_DIR}/$GIT_MANIFEST_NAME
 fi

@@ -1,7 +1,6 @@
 #!/bin/bash
 #
 # Copyright 2014 Hewlett-Packard Development Company, L.P.
-# All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -16,6 +15,7 @@
 # under the License.
 #
 set -eu
+set -o pipefail
 
 export DIB_MANIFEST_IMAGE_DIR=${DIB_MANIFEST_IMAGE_DIR:-/etc/dib-manifests}
 export DIB_MANIFEST_SAVE_DIR=${DIB_MANIFEST_SAVE_DIR:-${IMAGE_NAME}.d/}
