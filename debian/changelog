@@ -1,3 +1,9 @@
+python-diskimage-builder (0.1.30-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Thomas Goirand <zigo@debian.org>  Tue, 16 Sep 2014 14:33:25 +0800
+
 python-diskimage-builder (0.1.13-2) unstable; urgency=medium
 
   [ Thomas Bechtold ]
