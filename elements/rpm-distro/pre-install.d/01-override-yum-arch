@@ -1,5 +1,8 @@
 #!/bin/bash
 
+if [ ${DIB_DEBUG_TRACE:-0} -gt 0 ]; then
+    set -x
+fi
 set -eu
 set -o pipefail
 
@@ -9,6 +12,12 @@ if [ "i386" = "$ARCH" ]; then
 elif [ "amd64" = "$ARCH" ]; then
     basearch=x86_64
     arch=x86_64
+elif [[ "$ARCH" = "ppc64" ]]; then
+    basearch=ppc64
+    arch=ppc64
+elif [[ "$ARCH" = "ppc64el" ]]; then
+    basearch=ppc64el
+    arch=ppc64el
 else
     echo "********************"
     echo "Unknown arch '$ARCH'"

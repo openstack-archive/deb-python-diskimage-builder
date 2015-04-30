@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# dib-lint: disable=indent
+# dib-lint indent requirements causes issue with pep8
 
 # Copyright 2012 Hewlett-Packard Development Company, L.P.
 #
@@ -14,6 +16,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from __future__ import print_function
 import sys
 
 # Manually maintained for brevity; consider making this compiled from
@@ -48,8 +51,6 @@ package_map = {
     'linux-headers-generic': 'kernel-headers',
     'linux-image-generic': 'kernel',
     'lm-sensors': 'lm_sensors',
-    'mariadb-galera-server': 'MariaDB-Galera-server',
-    'mariadb-client': 'MariaDB-client',
     'mysql-client-5.5': 'mariadb',
     'mysql-server-5.5': 'mariadb-server',
     'nagios-plugins-basic': 'nagios-plugins-all',
@@ -79,6 +80,9 @@ package_map = {
     # openstack mappings
     'openstack-neutron-dhcp-agent': 'openstack-neutron',
 }
+
+print("WARNING: map-packages is deprecated.  Please use the pkg-map element.",
+      file=sys.stderr)
 
 for arg in sys.argv[1:]:
     if arg not in package_map and arg.endswith('-dev'):

@@ -1,0 +1,7 @@
+curl
+dmidecode
+fdisk
+ipmitool
+jq
+lscpu
+wc

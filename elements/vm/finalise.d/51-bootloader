@@ -3,13 +3,20 @@
 # Configure grub. Note that the various conditionals here are to handle
 # different distributions gracefully.
 
-set -eux
+if [ ${DIB_DEBUG_TRACE:-1} -gt 0 ]; then
+    set -x
+fi
+set -eu
 set -o pipefail
 
 # FIXME:
 [ -n "$IMAGE_BLOCK_DEVICE" ]
 PART_DEV=$IMAGE_BLOCK_DEVICE
-BOOT_DEV=$(echo $IMAGE_BLOCK_DEVICE | sed -e 's#p1##' | sed -e 's#mapper/##')
+if [[ "$ARCH" =~ "ppc" ]]; then
+    BOOT_DEV=$(echo $IMAGE_BLOCK_DEVICE | sed -e 's#p2##')'p1'
+else
+    BOOT_DEV=$(echo $IMAGE_BLOCK_DEVICE | sed -e 's#p1##' | sed -e 's#mapper/##')
+fi
 
 function install_extlinux {
     install-packages extlinux
@@ -51,6 +58,8 @@ function install_grub2 {
     # Check for offline installation of grub
     if [ -f "/tmp/grub/install" ] ; then
         source /tmp/grub/install
+    elif [[ "$ARCH" =~ "ppc" ]]; then
+        install-packages grub-ieee1275
     else
         install-packages grub-pc
     fi
@@ -108,7 +117,11 @@ function install_grub2 {
         fi
     fi
 
-    $GRUBNAME --modules="biosdisk part_msdos" $GRUB_OPTS $BOOT_DEV
+    if [[ "$ARCH" =~ "ppc" ]] ; then
+        $GRUBNAME --modules="part_msdos" $GRUB_OPTS $BOOT_DEV --no-nvram
+    else
+        $GRUBNAME --modules="biosdisk part_msdos" $GRUB_OPTS $BOOT_DEV
+    fi
 
     # This might be better factored out into a per-distro 'install-bootblock'
     # helper.
@@ -118,22 +131,21 @@ function install_grub2 {
         GRUB_CFG=/boot/grub/grub.cfg
     fi
 
-    DIST=`lsb_release -is`
-    [ -n "$DIST" ]
     echo 'GRUB_TERMINAL="serial console"' >>/etc/default/grub
     echo 'GRUB_GFXPAYLOAD_LINUX=text' >>/etc/default/grub
-    echo 'GRUB_CMDLINE_LINUX_DEFAULT="console=tty0 console=ttyS0,115200"' >>/etc/default/grub
+    echo 'GRUB_CMDLINE_LINUX_DEFAULT="console=tty0 console=ttyS0,115200 no_timer_check"' >>/etc/default/grub
     echo 'GRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1"' >>/etc/default/grub
     GRUB_MKCONFIG="grub2-mkconfig -o $GRUB_CFG"
-    case $DIST in
-        'Ubuntu'|'Debian')
+    DISTRO_NAME=${DISTRO_NAME:-}
+    case $DISTRO_NAME in
+        'ubuntu'|'debian')
             sed -i -e 's/\(^GRUB_CMDLINE_LINUX.*\)"$/\1 nofb nomodeset vga=normal"/' /etc/default/grub
             GRUB_MKCONFIG=update-grub
         ;;
-        'Fedora'|'CentOS')
+        'fedora'|'centos7'|'centos')
             echo 'GRUB_CMDLINE_LINUX="nofb nomodeset vga=normal"' >>/etc/default/grub
         ;;
-        'openSUSE project')
+        'opensuse')
             sed -i -e 's/\(^GRUB_CMDLINE_LINUX.*\)"$/\1 nofb nomodeset vga=normal"/' /etc/default/grub
         ;;
     esac
@@ -155,28 +167,27 @@ function install_grub2 {
         sed -i '$d' /etc/default/grub
     fi
 
-    RELEASE=`lsb_release -cs`
-    [ -n "$RELEASE" ]
     # grub-mkconfig generates a config with the device in it,
     # This shouldn't be needed, but old code has bugs
-    if [ $RELEASE = 'precise' ] || [ $RELEASE = 'wheezy' ]; then
+    DIB_RELEASE=${DIB_RELEASE:-}
+    if [ "$DIB_RELEASE" = 'precise' ] || [ "$DIB_RELEASE" = 'wheezy' ]; then
         sed -i "s%search --no.*%%" $GRUB_CFG
         sed -i "s%set root=.*%set root=(hd0,1)%" $GRUB_CFG
     fi
     # force use of a LABEL:
     # NOTE: Updating the grub config by hand once deployed should work, its just
     # prepping it in a different environment that needs fiddling.
-    sed -i "s%$PART_DEV%LABEL=cloudimg-rootfs%" $GRUB_CFG
-    sed -i "s%search --no-floppy --fs-uuid --set=root .*$%search --no-floppy --set=root --label cloudimg-rootfs%" $GRUB_CFG
-    sed -i "s%root=UUID=[A-Za-z0-9\-]*%root=LABEL=cloudimg-rootfs%" $GRUB_CFG
-    if [ "$DIST" = 'Fedora' ] ; then
-        if [ $(lsb_release -rs) = '19' ]; then
-            sed -i "s%UUID=[A-Za-z0-9\-]*%LABEL=cloudimg-rootfs%" /etc/fstab
+    sed -i "s%$PART_DEV%LABEL=${DIB_ROOT_LABEL}%" $GRUB_CFG
+    sed -i "s%search --no-floppy --fs-uuid --set=root .*$%search --no-floppy --set=root --label ${DIB_ROOT_LABEL}%" $GRUB_CFG
+    sed -i "s%root=UUID=[A-Za-z0-9\-]*%root=LABEL=${DIB_ROOT_LABEL}%" $GRUB_CFG
+    if [ "$DISTRO_NAME" = 'fedora' ] ; then
+        if [ "$DIB_RELEASE" = '19' ]; then
+            sed -i "s%UUID=[A-Za-z0-9\-]*%LABEL=${DIB_ROOT_LABEL}%" /etc/fstab
         fi
-        # Fix efi specific instructions in grub config file
-        if [ -d /sys/firmware/efi ]; then
-            sed -i 's%\(initrd\|linux\)efi /boot%\1 /boot%g' $GRUB_CFG
-        fi
+    fi
+    # Fix efi specific instructions in grub config file
+    if [ -d /sys/firmware/efi ]; then
+        sed -i 's%\(initrd\|linux\)efi /boot%\1 /boot%g' $GRUB_CFG
     fi
 }
 

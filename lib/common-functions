@@ -20,7 +20,7 @@ function tmpfs_check() {
   total_kB=$(awk '/^MemTotal/ { print $2 }' /proc/meminfo)
   # tmpfs uses by default 50% of the available RAM, so the RAM should be at least
   # the double of the minimum tmpfs size required
-  RAM_NEEDED=$[ $DIB_MIN_TMPFS * 2 ]
+  RAM_NEEDED=$(($DIB_MIN_TMPFS * 2))
   [ $total_kB -lt $(($RAM_NEEDED*1024*1024)) ] || return 0
   echo "Not enough RAM to use tmpfs for build. ($total_kB < ${RAM_NEEDED}G)"
   return 1
@@ -36,9 +36,10 @@ function mk_build_dir () {
     sudo mount -t tmpfs tmpfs $TMP_IMAGE_DIR
   fi
   sudo chown $(id -u):$(id -g) $TMP_BUILD_DIR $TMP_IMAGE_DIR
-  trap cleanup EXIT
+  trap trap_cleanup EXIT
   echo Building in $TMP_BUILD_DIR
   export TMP_IMAGE_PATH=$TMP_IMAGE_DIR/image.raw
+  export OUT_IMAGE_PATH=$TMP_IMAGE_PATH
   export TMP_HOOKS_PATH=$TMP_BUILD_DIR/hooks
 }
 
@@ -49,10 +50,7 @@ function finish_image () {
       mv "$1" "$old_image"
     fi
 
-    mv $TMP_IMAGE_PATH $1
-    cleanup_dirs
-    # All done!
-    trap EXIT
+    mv $OUT_IMAGE_PATH $1
     echo "Image file $1 created..."
 }
 
@@ -60,44 +58,30 @@ function save_image () {
     finish_image $1
 }
 
-function element_pre_check() {
-    local element_dir=$1
-    [ -d $element_dir ] || return 1
-    if [ -d $element_dir/first-boot.d ] ; then
-      first_boot_deprecated_message $element_dir
-    fi
-}
-
-_DISPLAYED_FIRST_BOOT_DEPRECATED=0
-function first_boot_deprecated_message() {
-    local element_dir=$1
-    echo "WARNING: first-boot.d found in $element_dir"
-    if [ $_DISPLAYED_FIRST_BOOT_DEPRECATED -eq 1 ] ; then
-        return
-    fi
-    echo "***********************************************************"
-    echo "*                                                         *"
-    echo "*                                                         *"
-    echo "*                                                         *"
-    echo "*                                                         *"
-    echo "* WARNING: first-boot.d is DEPRECATED, it will be removed *"
-    echo "* from diskimage-builder in a future release.             *"
-    echo "*                                                         *"
-    echo "*                                                         *"
-    echo "*                                                         *"
-    echo "*                                                         *"
-    echo "***********************************************************"
-    echo Pausing 10 seconds....
-    sleep 10
-    _DISPLAYED_FIRST_BOOT_DEPRECATED=1
+function copy_hooks_not_overwrite () {
+    _DIR=$(basename $1)
+    test -d $TMP_HOOKS_PATH/$_DIR || mkdir $TMP_HOOKS_PATH/$_DIR
+    for _HOOK in $(ls $1); do
+      if [ ! -f $TMP_HOOKS_PATH/$_DIR/$_HOOK ]; then
+        cp -t $TMP_HOOKS_PATH/$_DIR -a $1/$_HOOK
+      else
+        echo "There is a duplicated hook in your elements: $_ELEMENT/$_DIR/$_HOOK"
+        exit 1
+      fi
+    done
 }
 
 function generate_hooks () {
   mkdir -p $TMP_HOOKS_PATH
   for _ELEMENT in $IMAGE_ELEMENT ; do
     for dir in ${ELEMENTS_PATH//:/ } ; do
-      element_pre_check $dir/$_ELEMENT || continue
-      cp -t $TMP_HOOKS_PATH -a $dir/$_ELEMENT/* ;
+      [ -d $dir/$_ELEMENT ] || continue
+      for _DIR in $(find $dir/$_ELEMENT -mindepth 1 -maxdepth 1 -type d -not -name tests); do
+        copy_hooks_not_overwrite $_DIR
+      done
+      for _FILE in $(find $dir/$_ELEMENT -maxdepth 1 -type f); do
+        cp -t $TMP_HOOKS_PATH -a $_FILE
+      done
       break
     done
   done
@@ -188,8 +172,10 @@ function mount_qcow_image() {
 function cleanup_dirs () {
     sudo rm -rf $TMP_BUILD_DIR/built
     sudo rm -rf $TMP_BUILD_DIR/mnt
-    sudo umount -f  $TMP_BUILD_DIR $TMP_IMAGE_DIR || true
-    rm -rf $TMP_BUILD_DIR $TMP_IMAGE_DIR
+    if tmpfs_check ; then
+        sudo umount -f  $TMP_BUILD_DIR $TMP_IMAGE_DIR || true
+    fi
+    rm -rf --one-file-system $TMP_BUILD_DIR $TMP_IMAGE_DIR
 }
 
 # Run a directory of hooks outside the target (that is, no chrooting).
@@ -197,7 +183,7 @@ function run_d() {
     check_element
     check_break before-$1 bash
     if [ -d ${TMP_HOOKS_PATH}/$1.d ] ; then
-      ${SCRIPT_HOME}/dib-run-parts ${TMP_HOOKS_PATH}/$1.d
+      dib-run-parts ${TMP_HOOKS_PATH}/$1.d
     fi
     check_break after-$1 bash
 }
@@ -211,12 +197,12 @@ function detach_loopback() {
     loopdev_name=$(echo $loopdev | sed 's/\/dev\///g')
     mapper_name=$(sudo dmsetup ls | grep $loopdev_name | awk '{ print $1 }')
     if [ "$mapper_name" ]; then
-        sudo dmsetup remove $mapper_name
+        sudo dmsetup --noudevsync remove $mapper_name
     fi
 
     # loopback dev may be tied up a bit by udev events triggered by partition events
     for try in $(seq 10 -1 1) ; do
-        if sudo losetup -d $loopdev ; then
+        if ! sudo losetup $loopdev || sudo losetup -d $loopdev ; then
             return 0
         fi
         echo $loopdev may be busy, sleeping up to $try more seconds...
@@ -233,11 +219,11 @@ function arg_to_elements() {
     IMAGE_ELEMENT="base $IMAGE_ELEMENT"
   fi
   if [ "$IS_RAMDISK" == "1" ]; then
-    IMAGE_ELEMENT="ramdisk $IMAGE_ELEMENT"
+    IMAGE_ELEMENT="$RAMDISK_ELEMENT $IMAGE_ELEMENT"
   fi
   echo "Building elements: $IMAGE_ELEMENT"
 
-  IMAGE_ELEMENT=$($SCRIPT_HOME/element-info --expand-dependencies $IMAGE_ELEMENT)
+  IMAGE_ELEMENT=$($SCRIPT_HOME/element-info $IMAGE_ELEMENT)
   export IMAGE_ELEMENT
 
   echo "Expanded element dependencies to: $IMAGE_ELEMENT"

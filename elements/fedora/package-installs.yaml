@@ -1,0 +1,34 @@
+# On a fresh Fedora 18 install you might have to update audit in order to
+# fix a conflict with a file from the glibc package.
+# https://bugzilla.redhat.com/show_bug.cgi?id=894307
+audit:
+
+# The version of openssl shipped in the fedora cloud image is no longer
+# compatible with new python environments installed by virtualenv, so we need
+# to update it first.
+# See https://bugs.launchpad.net/diskimage-builder/+bug/1254879
+openssl:
+
+# FIXME: To avoid conflict between the pyOpenSSL installed via python-pip
+# and pyOpenSSL installed via yum, we are going to sort it out installing
+# it earlier at the beginning of the image building process. Pyhton-pip
+# is installing pyOpenSSL as part of satisfying the requirements.txt
+# in python-glanceclient and afterwards yum tries to install it as a
+# dependency of the python-paste package needed for the heat element,
+# this seems to be conflicting and causing the image building process to
+# fail. The problem is hapenning on a Fedora 18 system.
+python-pyopenssl:
+
+# Workaround for:
+# https://bugzilla.redhat.com/show_bug.cgi?id=1066983
+vim-minimal:
+
+# kernel modules to match the core kernel
+# Newer Fedora 21 splits these out into a separate package.
+# It contains iscsi_tcp.ko (for Ironic) among other things like network
+# driver modules, etc.
+kernel-modules:
+
+# This small package is required on Fedora 21 in order to build some
+# packages via source (MySQL driver).
+redhat-rpm-config:

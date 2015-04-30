@@ -28,6 +28,12 @@ function unmount_image () {
     fi
 }
 
+function trap_cleanup() {
+    exitval=$?
+    cleanup
+    exit $exitval
+}
+
 function cleanup () {
     unmount_image
     cleanup_dirs
@@ -50,15 +56,18 @@ function ensure_sudo () {
 
 # Helper function to run a command inside the chroot
 function run_in_target () {
-    # Force the inclusion of /usr/local/bin in PATH, this is needed for some
-    # distros that does not include /usr/local/bin in the sudoers secure_path.
+    # Force the inclusion of a typical set of dirs in PATH, this is needed for guest
+    # distros that have path elements not in the host PATH.
     # Note that we're not expanding PATH during argument processing, the \$
     # will preserve the PATH syntax until after the sh command runs
-    cmd="PATH=\$PATH:/usr/local/bin ; $@"
+    cmd="PATH=\$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin ; $@"
     # -E to preserve http_proxy
     ORIG_HOME=$HOME
     export HOME=/root
-    sudo -E chroot $TMP_MOUNT_PATH sh -c "$cmd"
+    # Force an empty TMPDIR inside the chroot. There is no need to use an user
+    # defined tmp dir which may not exist in the chroot.
+    # Bug: #1330290
+    sudo -E TMPDIR= chroot $TMP_MOUNT_PATH sh -c "$cmd"
     export HOME=$ORIG_HOME
 }
 
@@ -77,16 +86,11 @@ function run_d_in_target () {
       trap - ERR
       check_break after-$1 run_in_target bash
       sudo umount -f $TMP_MOUNT_PATH/tmp/in_target.d
-      sudo rmdir $TMP_MOUNT_PATH/tmp/in_target.d
+      if ! timeout 5  sh -c " while ! sudo rmdir $TMP_MOUNT_PATH/tmp/in_target.d; do sleep 1; done"; then
+          echo "ERROR: unable to cleanly remove $TMP_MOUNT_PATH/tmp/in_target.d"
+          exit 1
+      fi
     fi
-}
-
-function prepare_first_boot () {
-    check_break before-first-boot run_in_target bash
-    if [ -d ${TMP_HOOKS_PATH}/first-boot.d ] ; then
-      sudo cp -t $TMP_MOUNT_PATH/etc/ -a $TMP_HOOKS_PATH/first-boot.d
-    fi
-    check_break after-first-boot run_in_target bash
 }
 
 function finalise_base () {
@@ -114,10 +118,21 @@ function compress_and_save_image () {
     else
         EXTRA_OPTIONS=""
     fi
-    qemu-img convert ${COMPRESS_IMAGE:+-c} -f raw $TMP_IMAGE_PATH -O $IMAGE_TYPE $EXTRA_OPTIONS $1-new
-    rm $TMP_IMAGE_PATH
+    if [ "$IMAGE_TYPE" = "raw" ]; then
+        mv $TMP_IMAGE_PATH $1-new
+    elif [ "$IMAGE_TYPE" == "vhd" ]; then
+        cp $TMP_IMAGE_PATH $1-intermediate
+        vhd-util convert -s 0 -t 1 -i $1-intermediate -o $1-intermediate
+        vhd-util convert -s 1 -t 2 -i $1-intermediate -o $1-new
+        # The previous command creates a .bak file
+        rm $1-intermediate.bak
+        OUT_IMAGE_PATH=$1-new
+    else
+        echo "Converting image using qemu-img convert"
+        qemu-img convert ${COMPRESS_IMAGE:+-c} -f raw $TMP_IMAGE_PATH -O $IMAGE_TYPE $EXTRA_OPTIONS $1-new
+    fi
 
-    TMP_IMAGE_PATH=$1-new
+    OUT_IMAGE_PATH=$1-new
     finish_image $1
 }
 
@@ -158,11 +173,17 @@ function select_boot_kernel_initrd () {
             exit 1
         fi
     elif [ -f $TARGET_ROOT/etc/debian_version ]; then
-        KERNEL=$(basename $(ls -1rv $BOOTDIR/vmlinuz*generic | head -1))
-        RAMDISK=$(basename $(ls -1rv $BOOTDIR/initrd*generic | head -1))
-        # in case files with "generic" suffix were not found, fall back to default
-        KERNEL=${KERNEL:-$(basename $(ls -1rv $BOOTDIR/vmlinuz* | head -1))}
-        RAMDISK=${RAMDISK:-$(basename $(ls -1rv $BOOTDIR/initrd* | head -1))}
+        KERNEL=$(basename $(ls -1rv $BOOTDIR/vmlinu*generic 2>/dev/null || ls -1rv $BOOTDIR/vmlinu* | head -1))
+        RAMDISK=$(basename $(ls -1rv $BOOTDIR/initrd*generic 2>/dev/null || ls -1rv $BOOTDIR/initrd* | head -1))
+
+        if [ -f $TARGET_ROOT/dib-signed-kernel-version ] ; then
+            . $TARGET_ROOT/dib-signed-kernel-version
+        fi
+
+        if [ -n "${DIB_SIGNED_KERNEL_VERSION:-}" ]; then
+            echo "Using signed kernel $DIB_SIGNED_KERNEL_VERSION"
+            KERNEL=$(basename $(ls -1rv $BOOTDIR/vmlinu*generic.efi.signed 2>/dev/null))
+        fi
     elif [ -f $TARGET_ROOT/etc/SuSE-release ]; then
         KERNEL=$(basename $(readlink -e $BOOTDIR/vmlinuz))
         RAMDISK=$(basename $(readlink -e $BOOTDIR/initrd))

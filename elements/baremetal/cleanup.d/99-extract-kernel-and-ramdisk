@@ -14,6 +14,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+if [ ${DIB_DEBUG_TRACE:-0} -gt 0 ]; then
+    set -x
+fi
 set -eu
 set -o pipefail
 
@@ -27,3 +30,8 @@ sudo cp $BOOTDIR/$KERNEL ${IMAGE_NAME}.vmlinuz
 sudo cp $BOOTDIR/$RAMDISK ${IMAGE_NAME}.initrd
 sudo chmod a+r ${IMAGE_NAME}.vmlinuz
 sudo chmod a+r ${IMAGE_NAME}.initrd
+
+if [ -f $TARGET_ROOT/dib-signed-kernel-version ] ; then
+    echo "Removing $TARGET_ROOT/dib-signed-kernel-version"
+    sudo rm -f $TARGET_ROOT/dib-signed-kernel-version
+fi

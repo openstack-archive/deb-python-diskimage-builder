@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# This script deals quite a bit with passwords, which we don't ever want
+# included in trace output
+# dib-lint: disable=dibdebugtrace
+
+set -eu
+set -o pipefail
+
+opts=
+attach_opts=
+repos="repos --enable rhel-7-server-rpms"
+satellite_repo="rhel-7-server-rh-common-rpms"
+
+if [ -n "${REG_AUTO_ATTACH:-}" ]; then
+    opts="$opts --auto-attach"
+
+    if [ -n "${REG_SERVICE_LEVEL:-}" ]; then
+        opts="$opts --servicelevel $REG_SERVICE_LEVEL"
+    fi
+
+    if [ -n "${REG_RELEASE:-}" ]; then
+        opts="$opts --release=$REG_RELEASE"
+    fi
+else
+    if [ -n "${REG_SERVICE_LEVEL:-}" ]; then
+        echo "WARNING: REG_SERVICE_LEVEL set without REG_AUTO_ATTACH."
+    fi
+
+    if [ -n "${REG_RELEASE:-}" ]; then
+        echo "WARNING: REG_RELEASE set without REG_AUTO_ATTACH."
+    fi
+
+    if [ -n "${REG_POOL_ID:-}" ]; then
+        attach_opts="$attach_opts --pool=$REG_POOL_ID"
+    fi
+fi
+
+if [ -n "${REG_BASE_URL:-}" ]; then
+    opts="$opts --baseurl=$REG_BASE_URL"
+fi
+
+if [ -n "${REG_ENVIRONMENT:-}" ]; then
+    opts="$opts --env=$REG_ENVIRONMENT"
+fi
+
+if [ -n "${REG_FORCE:-}" ]; then
+    opts="$opts --force"
+fi
+
+if [ -n "${REG_SERVER_URL:-}" ]; then
+    opts="$opts --serverurl=$REG_SERVER_URL"
+fi
+
+if [ -n "${REG_ACTIVATION_KEY:-}" ]; then
+    opts="$opts --activationkey=$REG_ACTIVATION_KEY"
+
+    if [ -z "${REG_ORG:-}" ]; then
+        echo "WARNING: REG_ACTIVATION_KEY set without REG_ORG."
+    fi
+else
+    if [ -n "${REG_PASSWORD:-}" ]; then
+        opts="$opts --password $REG_PASSWORD"
+    fi
+
+    if [ -n "${REG_USER:-}" ]; then
+        opts="$opts --username $REG_USER"
+    fi
+fi
+
+if [ -n "${REG_MACHINE_NAME:-}" ]; then
+    opts="$opts --name $REG_MACHINE_NAME"
+fi
+
+if [ -n "${REG_ORG:-}" ]; then
+    opts="$opts --org=$REG_ORG"
+fi
+
+if [ -n "${REG_REPOS:-}" ]; then
+    for repo in $(echo $REG_REPOS | tr ',' '\n'); do
+        repos="$repos --enable $repo"
+    done
+fi
+
+if [ -n "${REG_TYPE:-}" ]; then
+    opts="$opts --type=$REG_TYPE"
+fi
+
+sanitized_opts=$(echo "$opts" | sed 's/--password \([^ ]*\)/--password ***/g')
+sanitized_opts=$(echo "$sanitized_opts" | sed 's/--activationkey=\([^ ]*\)/--activationkey=***/g')
+
+case "${REG_METHOD:-}" in
+    portal)
+        echo "Registering with options: $sanitized_opts"
+        subscription-manager register $opts
+        if [ -z "${REG_AUTO_ATTACH:-}" ]; then
+            echo "Attaching with options: $attach_opts"
+            subscription-manager attach $attach_opts
+        fi
+        echo "Enabling repos: $repos"
+        subscription-manager $repos
+        ;;
+    satellite)
+        # Save an unmodified copy of the repo list for logging
+        user_repos=$repos
+        repos="$repos --enable ${satellite_repo}"
+        echo "Installing satellite dependencies"
+        rpm -Uvh "$REG_SAT_URL/pub/katello-ca-consumer-latest.noarch.rpm" || true
+        echo "Registering with options: $sanitized_opts"
+        subscription-manager register $opts
+        echo "Enabling repos: $user_repos"
+        subscription-manager $repos
+        echo "Disabling satellite repo because it is no longer needed"
+        subscription-manager repos --disable ${satellite_repo}
+        ;;
+    disable)
+        echo "Disabling RHEL registration"
+        ;;
+    *)
+        echo "WARNING: only 'portal', 'satellite', and 'disable' are valid values for REG_METHOD."
+        exit 0
+esac

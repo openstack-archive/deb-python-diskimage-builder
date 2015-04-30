@@ -1,7 +1,15 @@
 #!/bin/bash
 
+if [ ${DIB_DEBUG_TRACE:-0} -gt 0 ]; then
+    set -x
+fi
 set -eu
 set -o pipefail
+
+# Don't provide any source repositories in environments where they are not allowed
+if [ -n "${NO_SOURCE_REPOSITORIES:-}" ]; then
+    exit 0
+fi
 
 # If the old cache exists, move it to the new name
 function make_new_cache(){
@@ -84,7 +92,7 @@ function get_repos_for_element(){
 
             # Return if install type is not source
             local INSTALL_TYPE_VAR=DIB_INSTALLTYPE_${REPONAME//[^A-Za-z0-9]/_}
-            local INSTALL_TYPE=${!INSTALL_TYPE_VAR:-source}
+            local INSTALL_TYPE=${!INSTALL_TYPE_VAR:-$DIB_DEFAULT_INSTALLTYPE}
             if [ ! $INSTALL_TYPE = "source" ]; then
                 echo "$REPONAME install type not set to source"
                 continue
@@ -131,16 +139,35 @@ function get_repos_for_element(){
                 fi
 
                 echo "Cloning from $REPONAME cache and applying ref $REPOREF"
-                sudo git clone $CACHE_PATH $REPO_DEST
-                pushd $REPO_DEST
-                sudo git fetch $CACHE_PATH $REPOREF
-                sudo git reset --hard FETCH_HEAD
-                # Get the sha in use
-                git_sha=$(git rev-parse FETCH_HEAD)
-                popd
+                # If the local dir is already used, see if the pertinent details differ
+                if [[ -d $REPO_DEST ]]; then
+                    DESIRED="$(sudo git --git-dir=$REPO_DEST/.git config remote.origin.url)"
+                    if [[ "$CACHE_PATH" != "$DESIRED" ]]; then
+                        echo "REPOLOCATIONS don't match ("$CACHE_PATH" != "$DESIRED")" >&2
+                        exit 1
+                    else
+                        pushd $REPO_DEST
+                        # When we first clone we create a branch naming what we fetched
+                        # that must match, or we are asking for two different references from the
+                        # same repo, which is an error
+                        if ! git rev-parse fetch_$REPOREF; then
+                            echo "REPOREFS don't match - failed to get sha1 of fetch_$REPOREF" >&2
+                            exit 1
+                        fi
+                        popd
+                    fi
+                else
+                    sudo git clone $CACHE_PATH $REPO_DEST
+                    pushd $REPO_DEST
+                    sudo git fetch $CACHE_PATH $REPOREF:fetch_$REPOREF
+                    sudo git reset --hard FETCH_HEAD
+                    # Get the sha in use
+                    git_sha=$(git rev-parse FETCH_HEAD)
+                    popd
 
-                # Write the sha being used into the source-repositories manifest
-                echo "$REPONAME git $REPOPATH $REPOLOCATION $git_sha" >> $GIT_MANIFEST
+                    # Write the sha being used into the source-repositories manifest
+                    echo "$REPONAME git $REPOPATH $REPOLOCATION $git_sha" >> $GIT_MANIFEST
+                fi
                 ;;
             tar)
                 # The top level directory of the tarball mightn't have a fixed name i.e.
@@ -197,8 +224,8 @@ function get_repos_for_element(){
     done < $REPO_SOURCES
 }
 
-CACHE_BASE=~/.cache/image-create/source-repositories
-OLD_CACHE_BASE=~/.cache/image-create/repository-sources
+CACHE_BASE=$DIB_IMAGE_CACHE/source-repositories
+OLD_CACHE_BASE=$DIB_IMAGE_CACHE/repository-sources
 make_new_cache $OLD_CACHE_BASE $CACHE_BASE
 mkdir -p $CACHE_BASE
 # Use the IMAGE_NAME from the calling script, and make it unique with the temporary path

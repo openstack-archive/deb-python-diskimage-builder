@@ -1,9 +1,11 @@
 #!/bin/bash
 
+if [ ${DIB_DEBUG_TRACE:-0} -gt 0 ]; then
+    set -x
+fi
 set -eu
 set -o pipefail
 
-home=$(dirname $0)
 exec sudo install -m 0755 -o root -g root -D \
-    $home/../bin/dib-run-parts \
+    $(which dib-run-parts) \
     $TARGET_ROOT/usr/local/bin/dib-run-parts

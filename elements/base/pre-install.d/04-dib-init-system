@@ -1,6 +1,0 @@
-#!/bin/bash
-
-set -eu
-set -o pipefail
-
-install -m 0755 -o root -g root $(dirname $0)/../dib-init-system /usr/bin/

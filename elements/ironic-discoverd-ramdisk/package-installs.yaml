@@ -1,0 +1,5 @@
+curl:
+dmidecode:
+ipmitool:
+jq:
+util-linux:

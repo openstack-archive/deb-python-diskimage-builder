@@ -1,5 +1,8 @@
 #!/bin/bash
 
+if [ ${DIB_DEBUG_TRACE:-0} -gt 0 ]; then
+    set -x
+fi
 set -eu
 set -o pipefail
 
@@ -28,20 +31,23 @@ else
         WORKING=$(mktemp -d)
         EACTION="rm -r $WORKING"
         trap "$EACTION" EXIT
-        RAW_FILE=$(basename $BASE_IMAGE_FILE)
-        RAW_FILE=${RAW_FILE%.qcow2}.raw
-        qemu-img convert -f qcow2 -O raw $DIB_IMAGE_CACHE/$BASE_IMAGE_FILE $WORKING/$RAW_FILE
+        RAW_FILE=$(mktemp --tmpdir=$WORKING XXXXXX.raw)
+        qemu-img convert -f qcow2 -O raw $DIB_IMAGE_CACHE/$BASE_IMAGE_FILE $RAW_FILE
         MAGIC_BIT=p1
         # NOTE: On RHEL, partprobe of /dev/loop0 does not create /dev/loop0p2,
         # while kpartx at least creates /dev/mapper/loop0p2.
-        LOOPDEV=$(sudo kpartx -av $WORKING/$RAW_FILE | awk "/loop[0-9]+$MAGIC_BIT/ {print \$3}")
+        LOOPDEV=$(sudo kpartx -av $RAW_FILE | awk "/loop[0-9]+$MAGIC_BIT/ {print \$3}")
+        # If running inside Docker, make our nodes manually, because udev will not be working.
+        if [ -f /.dockerenv ]; then
+            sudo dmsetup --noudevsync mknodes
+        fi
         export LOOPDEV=$LOOPDEV
         echo "Loop device is set to: $LOOPDEV"
         if ! timeout 5 sh -c "while ! [ -e /dev/mapper/$LOOPDEV ]; do sleep 1; done"; then
                 echo "Error: Could not find /dev/mapper/$LOOPDEV"
                 exit 1
         fi
-        EACTION="sudo kpartx -d $WORKING/$RAW_FILE;$EACTION"
+        EACTION="sudo kpartx -d $RAW_FILE;$EACTION"
         trap "$EACTION" EXIT
         mkdir $WORKING/mnt
         sudo mount /dev/mapper/$LOOPDEV $WORKING/mnt

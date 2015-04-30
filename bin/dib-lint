@@ -71,8 +71,15 @@ for i in $(find elements -type f); do
         fi
 
         # Ensure 4 spaces indent are used
-        if grep -q "^ \{4\}* \{1,3\}[^ ]" ${i}; then
-            error "$i should use 4 spaces indent"
+
+        if [ "$(file -b --mime-type $i)" = "text/x-python" ]; then
+            flake8 $i
+        else
+            if ! excluded indent ; then
+                if grep -q "^ \{4\}* \{1,3\}[^ ]" ${i}; then
+                    error "$i should use 4 spaces indent"
+                fi
+            fi
         fi
     fi
 
@@ -82,13 +89,13 @@ for i in $(find elements -type f); do
         SORTED=${TMPDIR}/element-deps.sorted
         grep -v '^#' $i > ${UNSORTED}
         sort ${UNSORTED} > ${SORTED}
-        diff -c ${UNSORTED} ${SORTED}
-        if [ $? -ne 0 ]; then
+        if [ -n "$(diff -c ${UNSORTED} ${SORTED})" ]; then
             error "$i is not sorted alphabetically"
         fi
     fi
 
-    # Check that all scripts are set -eu -o pipefail
+    # Check that all scripts are set -eu -o pipefail and look for
+    # DIB_DEBUG_TRACE
     # NOTE(bnemec): This doesn't verify that the set call occurs high
     # enough in the file to be useful, but hopefully nobody will be
     # sticking set calls at the end of their file to trick us.  And if
@@ -113,12 +120,17 @@ for i in $(find elements -type f); do
                 error "$i is not set -o pipefail"
             fi
         fi
+        if ! excluded dibdebugtrace; then
+            if [ -z "$(grep "DIB_DEBUG_TRACE" $i)" ]; then
+                error "$i does not follow DIB_DEBUG_TRACE"
+            fi
+        fi
     fi
 done
 
-for i in $(find elements -type f -and -name '*.md' -or -type f -executable); do
+for i in $(find elements -type f -and -name '*.rst' -or -type f -executable); do
     # Check for tab indentation
-    if ! excluded indent; then
+    if ! excluded tabindent; then
         if grep -q $'^ *\t' ${i}; then
             error "$i contains tab characters"
         fi
@@ -130,4 +142,9 @@ for i in $(find elements -type f -and -name '*.md' -or -type f -executable); do
         fi
     fi
 done
+
+md_docs=$(find elements -name '*.md')
+if [ -n "$md_docs" ]; then
+    error ".md docs found: $md_docs"
+fi
 exit $rc

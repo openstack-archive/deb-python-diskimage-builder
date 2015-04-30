@@ -24,18 +24,6 @@ function fullpath() {
   fi
 }
 
-function cleanup () {
-  unmount_dir "$TMP_BUILD_DIR/mnt"
-  if [ -f "$TMP_IMAGE_PATH" ]; then
-    loopdev=`sudo losetup -j "$TMP_IMAGE_PATH" | cut -d: -f1`
-    if [ -n "$loopdev" ]; then
-      detach_loopback "$loopdev"
-    fi
-  fi
-  unmount_dir "$TMP_BUILD_DIR"
-  rm -rf --one-file-system "$TMP_BUILD_DIR"
-}
-
 function create_ramdisk_base () {
   echo "Creating base system"
 
@@ -64,8 +52,18 @@ function create_ramdisk_base () {
     cp -a "$LIB_UDEV/firmware" "$TMP_MOUNT_PATH/lib/udev"
   fi
 
-  # cjk adding for hwdiscovery support
-  cp "/sbin/dhclient-script" "$TMP_MOUNT_PATH/sbin"
+  # cjk adding dhclient for hwdiscovery support
+  # dhclient scripts on some distros appear in different places, copy any we find
+  for FILE in /sbin/dhclient-script /usr/sbin/dhclient-script /etc/sysconfig/network-scripts/* /etc/rc.d/init.d/functions /etc/init.d/functions ; do
+    if [ -f $FILE ] ; then
+      mkdir -p $(dirname $TMP_MOUNT_PATH/$FILE)
+      cp $FILE $TMP_MOUNT_PATH/$FILE
+    fi
+  done
+  # /var/lib/dhclient is a directory on Fedora
+  if [ -d "/var/lib/dhclient" ] ; then
+    mkdir -p "$TMP_MOUNT_PATH/var/lib/dhclient"
+  fi
 
   mkdir -p "$TMP_MOUNT_PATH/etc/modprobe.d"
   echo "blacklist evbug" > "$TMP_MOUNT_PATH/etc/modprobe.d/blacklist.conf"
@@ -155,7 +153,8 @@ function populate_lib () {
   for i in "$BUSYBOX" bash lsmod modprobe udevadm \
            wget reboot shutdown $UDEVD $UDEV_FIRMWARE \
            $(cat /etc/dib_binary_deps) ; do
-    if busybox_list | grep "^$i\$" >/dev/null; then
+    # Don't take the ip command from busybox, its missing some features
+    if busybox_list | grep -v "^ip$" | grep "^$i\$" >/dev/null; then
       continue
     fi
     path=`which $i 2>/dev/null` || path=$i
@@ -167,9 +166,19 @@ function populate_lib () {
     copy_required_libs "$path"
   done
 
+  if [ -f /dib-signed-kernel-version ] ; then
+      . /dib-signed-kernel-version
+  fi
+  if [ -n "${DIB_SIGNED_KERNEL_VERSION:-}" ]; then
+      # Secure kernel module directory does not have efi.signed suffix to
+      # kernel version.
+      if echo $KERNEL_VERSION | grep -q 'efi.signed'; then
+          KERNEL_VERSION=`echo "$KERNEL_VERSION" |sed "s/\.efi\.signed//g"`
+      fi
+  fi
   cp -a "$MODULE_DIR" "$TMP_MOUNT_PATH/lib/modules/$KERNEL_VERSION"
   echo "Removing kernel framebuffer drivers to enforce text mode consoles..."
-  find $TMP_MOUNT_PATH/lib/modules/$KERNEL_VERSION/kernel/drivers/video -name '*fb.ko' -exec rm -v {} \;
+  find $TMP_MOUNT_PATH/lib/modules/$KERNEL_VERSION/kernel/drivers/video -name '*fb.ko' -exec rm -v {} +
   if [ -d $FIRMWARE_DIR ]; then
     cp -a "$FIRMWARE_DIR" "$TMP_MOUNT_PATH/lib/firmware"
   fi
@@ -238,10 +247,10 @@ function populate_udev () {
 }
 
 function find_kernel_version () {
-  _TMP=$(ls /boot/vmlinuz-* | sort | tail -1)
+  _TMP=$(ls /boot/vmlinu* | sort | tail -1)
   if [ "$_TMP" == "" ]; then
     echo "Unable to find a suitable kernel" >>/dev/stderr
     exit 1
   fi
-  echo ${_TMP##/boot/vmlinuz-}
+  echo ${_TMP##/boot/vmlinu[zx]-}
 }
