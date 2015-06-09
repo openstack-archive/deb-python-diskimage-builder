@@ -7,6 +7,11 @@ export OSLO_PACKAGE_VERSION=$(VERSION)
 %:
 	dh $@ --buildsystem=python_distutils --with python2
 
+override_dh_auto_install:
+	dh_auto_install
+	# Delete left over compiled binaries.
+	find $(CURDIR)/debian/python-diskimage-builder -iname '*.pyc' -delete
+
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
 	set -e && \

@@ -2,6 +2,7 @@ python-diskimage-builder (0.1.46-1) unstable; urgency=medium
 
   * New upstream release (Closes: #788096).
   * Fixed (build-)dependencies.
+  * Cleans leftovers .pyc in the package after python setup.py install.
 
  -- Thomas Goirand <zigo@debian.org>  Tue, 09 Jun 2015 10:21:41 +0200
 
