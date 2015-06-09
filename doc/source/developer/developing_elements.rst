@@ -134,7 +134,19 @@ Each element can use the following files to define or affect dependencies:
   on element B and element C includes element B in its "element-provides"
   file and A and C are included when building an image, then B is not used.
 
+Operating system elements
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Some elements define the base structure for an operating system -- for example,
+the ``opensuse`` element builds a base openSUSE system. Such elements have
+more requirements than the other elements:
+
+* they must have ``operating-system`` in their element-provides, so this
+  indicates they are an "operating system".
+
+* they must export the ``DISTRO_NAME`` environment variable with the name
+  of the distribution built, using an environment.d script. For example,
+  the ``opensuse`` element exports ``DISTRO_NAME=opensuse``.
 
 Ramdisk Elements
 ^^^^^^^^^^^^^^^^
@@ -185,7 +197,7 @@ possible approach to this would be to label elements as either a "driver",
 "service", or "config" element. Below are some examples.
 
 - Driver-specific elements should only contain the necessary bits for that
-  driver:
+  driver::
 
       elements/
          driver-mellanox/
@@ -194,7 +206,7 @@ possible approach to this would be to label elements as either a "driver",
                10-mlx      - package installation
 
 - An element that installs and configures Nova might be a bit more complex,
-  containing several scripts across several phases:
+  containing several scripts across several phases::
 
       elements/
          service-nova/
@@ -266,7 +278,24 @@ interfaces or disks are not detected correctly).
 Testing Elements
 ----------------
 
-Elements can be tested using python. To create a test:
+An element can have functional tests encapsulated inside the element itself. In
+order to create a test case, follow these steps:
+
+* Create a directory called 'test-elements' inside your element.
+
+* Inside the test-elements directory, create a directory with the name of your
+  test case. The test case directory should have the same structure as an
+  element.
+  i.e. elements/apt-sources/test-elements/test-case-1
+
+* Assert state during each of the element build phases you would like to test.
+  You can exit 1 to indicate a failure.
+
+* To exit early and indicate a success, touch a file /tmp/dib-test-should-fail
+  in the image chroot, then exit 1.
+
+Additionally, elements can be tested using python unittests. To create a
+a python test:
 
 * Create a directory called 'tests' in the element directory.
 

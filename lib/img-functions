@@ -56,18 +56,16 @@ function ensure_sudo () {
 
 # Helper function to run a command inside the chroot
 function run_in_target () {
-    # Force the inclusion of a typical set of dirs in PATH, this is needed for guest
-    # distros that have path elements not in the host PATH.
-    # Note that we're not expanding PATH during argument processing, the \$
-    # will preserve the PATH syntax until after the sh command runs
-    cmd="PATH=\$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin ; $@"
+    cmd="$@"
     # -E to preserve http_proxy
     ORIG_HOME=$HOME
     export HOME=/root
     # Force an empty TMPDIR inside the chroot. There is no need to use an user
     # defined tmp dir which may not exist in the chroot.
     # Bug: #1330290
-    sudo -E TMPDIR= chroot $TMP_MOUNT_PATH sh -c "$cmd"
+    # Force the inclusion of a typical set of dirs in PATH, this is needed for guest
+    # distros that have path elements not in the host PATH.
+    sudo -E TMPDIR= chroot $TMP_MOUNT_PATH env PATH="\$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" sh -c "$cmd"
     export HOME=$ORIG_HOME
 }
 
@@ -81,7 +79,8 @@ function run_d_in_target () {
       sudo mount --bind ${TMP_HOOKS_PATH} $TMP_MOUNT_PATH/tmp/in_target.d
       sudo mount -o remount,ro,bind ${TMP_HOOKS_PATH} $TMP_MOUNT_PATH/tmp/in_target.d
       check_break before-$1 run_in_target bash
-      trap "check_break after-error run_in_target bash" ERR
+      [ -z "$break_outside_target" ] && in_target_arg="run_in_target" || in_target_arg=
+      trap "check_break after-error $in_target_arg ${break_cmd:-bash}" ERR
       run_in_target dib-run-parts /tmp/in_target.d/$1.d
       trap - ERR
       check_break after-$1 run_in_target bash
@@ -108,6 +107,9 @@ function finalise_base () {
             sudo mv $TMP_MOUNT_PATH/etc/resolv.conf.ORIG $TMP_MOUNT_PATH/etc/resolv.conf
         fi
     fi
+    # Cleanup /tmp in the guest, so there is less cruft left there
+    unmount_dir $TMP_MOUNT_PATH/tmp
+    find $TMP_MOUNT_PATH/tmp -maxdepth 1 -mindepth 1 | xargs sudo rm -rf --one-file-system
 }
 
 function compress_and_save_image () {

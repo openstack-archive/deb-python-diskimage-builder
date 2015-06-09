@@ -15,6 +15,7 @@
 # under the License.
 
 function tmpfs_check() {
+  local echo_message=${1:-1}
   [ "$DIB_NO_TMPFS" == "0" ] || return 1
   [ -r /proc/meminfo ] || return 1
   total_kB=$(awk '/^MemTotal/ { print $2 }' /proc/meminfo)
@@ -22,7 +23,9 @@ function tmpfs_check() {
   # the double of the minimum tmpfs size required
   RAM_NEEDED=$(($DIB_MIN_TMPFS * 2))
   [ $total_kB -lt $(($RAM_NEEDED*1024*1024)) ] || return 0
-  echo "Not enough RAM to use tmpfs for build. ($total_kB < ${RAM_NEEDED}G)"
+  if [ $echo_message == '1' ]; then
+    echo "WARNING: Not enough RAM to use tmpfs for build. Using ${TMP_DIR:-/tmp}. ($total_kB < ${RAM_NEEDED}G)"
+  fi
   return 1
 }
 
@@ -118,36 +121,6 @@ function eval_run_d () {
   fi
 }
 
-# Usage: map_nbd $image
-# Returns nbd device path
-function map_nbd {
-    (lsmod | grep '^nbd ' >/dev/null) || sudo modprobe nbd max_part=16
-
-    if [[ $(qemu-nbd --help | grep cache) == *writeback* ]] ; then
-        CACHE="--cache=writeback"
-    else
-        echo "Warning: qemu-nbd without --cache=writeback is /slow/."
-        CACHE=""
-    fi
-    NBD_DEV=
-    for i in `seq 0 15`; do
-        if [ ! -e /sys/block/nbd$i/pid ]; then
-            NBD_DEV=/dev/nbd$i
-            # Connect to nbd and wait till it is ready
-            sudo qemu-nbd -c $NBD_DEV $CACHE $1
-            if ! timeout 60 sh -c "while ! [ -e /sys/block/nbd$i/pid ]; do sleep 1; done"; then
-                echo "Couldn't connect $NBD_DEV"
-                exit 1
-            fi
-            break
-        fi
-    done
-    if [ -z "$NBD_DEV" ]; then
-        echo "No free NBD slots"
-        exit 1
-    fi
-}
-
 # Delete and unmount the working dir used in extracting kernel/initrd
 function unmount_qcow_image () {
     sudo umount $WORK_DIR || true
@@ -172,7 +145,7 @@ function mount_qcow_image() {
 function cleanup_dirs () {
     sudo rm -rf $TMP_BUILD_DIR/built
     sudo rm -rf $TMP_BUILD_DIR/mnt
-    if tmpfs_check ; then
+    if tmpfs_check 0; then
         sudo umount -f  $TMP_BUILD_DIR $TMP_IMAGE_DIR || true
     fi
     rm -rf --one-file-system $TMP_BUILD_DIR $TMP_IMAGE_DIR
