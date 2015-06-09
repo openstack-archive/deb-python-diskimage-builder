@@ -2,24 +2,26 @@ Source: python-diskimage-builder
 Section: python
 Priority: optional
 Maintainer: PKG OpenStack <openstack-devel@lists.alioth.debian.org>
-Uploaders: Julien Danjou <acid@debian.org>,
-           Thomas Goirand <zigo@debian.org>,
-           Mehdi Abaakouk <sileht@sileht.net>
+Uploaders: Thomas Goirand <zigo@debian.org>,
 Build-Depends: debhelper (>= 9),
+               dh-python,
                openstack-pkg-tools,
-               python-all (>= 2.6.6-3~),
+               python-all,
                python3-all,
-               python-setuptools
+               python-setuptools,
+               python-sphinx,
 Build-Depends-Indep: python-babel (>= 1.3),
                      python-coverage (>= 3.6),
+                     python-dib-utils,
                      python-fixtures,
                      python-hacking (>= 0.8),
                      python-subunit (>= 0.0.18),
+                     python-oslosphinx (>= 2.5.0),
                      python3-subunit (>= 0.0.18),
                      python-testtools (>= 0.9.34),
                      python3-testtools (>= 0.9.34),
-                     testrepository (>= 0.0.17),
-                     subunit (>= 0.0.18)
+                     testrepository,
+                     subunit,
 Standards-Version: 3.9.5
 Vcs-Browser: http://git.gplhost.com/gitweb/?p=openstack/python-diskimage-builder.git
 Vcs-Git: http://git.gplhost.com/openstack/python-diskimage-builder.git
@@ -29,6 +31,7 @@ Package: python-diskimage-builder
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
 Depends: python-babel (>= 1.3),
+         python-dib-utils,
          ${misc:Depends},
          ${python:Depends},
          kpartx,
