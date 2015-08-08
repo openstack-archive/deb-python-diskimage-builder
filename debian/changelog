@@ -2,6 +2,7 @@ python-diskimage-builder (1.0.0-1) unstable; urgency=medium
 
   * New upstream release.
   * Depends on jq (Closes: #783517).
+  * Now depends on uuid-runtime (Closes: #791655).
 
  -- Thomas Goirand <zigo@debian.org>  Sat, 08 Aug 2015 09:56:02 +0000
 

@@ -19,7 +19,8 @@ Build-Depends-Indep: jq,
                      python-yaml,
                      subunit,
                      testrepository,
-Standards-Version: 3.9.5
+                     uuid-runtime,
+Standards-Version: 3.9.6
 Vcs-Browser: http://git.gplhost.com/gitweb/?p=openstack/python-diskimage-builder.git
 Vcs-Git: http://git.gplhost.com/openstack/python-diskimage-builder.git
 Homepage: https://git.openstack.org/cgit/openstack/diskimage-builder
@@ -27,11 +28,13 @@ Homepage: https://git.openstack.org/cgit/openstack/diskimage-builder
 Package: python-diskimage-builder
 Architecture: all
 Depends: debootstrap,
+         jq,
          kpartx,
          python-babel,
          python-dib-utils,
          python-yaml,
          qemu-utils,
+         uuid-runtime,
          ${misc:Depends},
          ${python:Depends},
 Description: image building tools for Openstack
