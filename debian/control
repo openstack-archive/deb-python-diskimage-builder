@@ -21,8 +21,8 @@ Build-Depends-Indep: jq,
                      testrepository,
                      uuid-runtime,
 Standards-Version: 3.9.6
-Vcs-Browser: http://git.gplhost.com/gitweb/?p=openstack/python-diskimage-builder.git
-Vcs-Git: http://git.gplhost.com/openstack/python-diskimage-builder.git
+Vcs-Browser: https://anonscm.debian.org/cgit/openstack/python-diskimage-builder.git/
+Vcs-Git: https://anonscm.debian.org/git/openstack/python-diskimage-builder.git
 Homepage: https://git.openstack.org/cgit/openstack/diskimage-builder
 
 Package: python-diskimage-builder
