@@ -1,0 +1,13 @@
+Code-Review+2: James Slagle <jslagle@redhat.com>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+1: Dmitry Tantsur <divius.inside@gmail.com>
+Code-Review+1: Pino Toscano <ptoscano@redhat.com>
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Code-Review+2: Steven Hardy <shardy@redhat.com>
+Workflow+1: Steven Hardy <shardy@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 07 Oct 2015 18:37:42 +0000
+Reviewed-on: https://review.openstack.org/220885
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

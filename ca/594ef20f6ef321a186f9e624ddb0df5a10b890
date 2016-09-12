@@ -1,0 +1,10 @@
+Code-Review+1: Jeremy Stanley <fungi@yuggoth.org>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+2: Steve Kowalik <steven@wedontsleep.org>
+Workflow+1: Steve Kowalik <steven@wedontsleep.org>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 21 Aug 2015 10:21:25 +0000
+Reviewed-on: https://review.openstack.org/213180
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

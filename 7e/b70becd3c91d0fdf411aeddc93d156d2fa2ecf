@@ -1,0 +1,13 @@
+Code-Review+1: Jane.zhang <jian.zhang8@hpe.com>
+Code-Review+2: Steve Kowalik <steven@wedontsleep.org>
+Code-Review+1: Sam Betts <sam@code-smash.net>
+Code-Review+1: Shivanand Tendulker <stendulker@gmail.com>
+Code-Review+1: Julia Kreger <juliaashleykreger@gmail.com>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Workflow+1: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 09 Dec 2015 01:07:35 +0000
+Reviewed-on: https://review.openstack.org/219612
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

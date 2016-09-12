@@ -1,0 +1,11 @@
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+1: Ghe Rivero <ghe.rivero@gmail.com>
+Code-Review+1: Paul Belanger <pabelanger@redhat.com>
+Code-Review+2: Steve Kowalik <steven@wedontsleep.org>
+Workflow+1: greghaynes <greg@greghaynes.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 15 Dec 2015 23:24:25 +0000
+Reviewed-on: https://review.openstack.org/256071
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

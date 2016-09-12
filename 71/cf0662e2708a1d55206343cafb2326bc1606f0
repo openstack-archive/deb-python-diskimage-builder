@@ -1,0 +1,11 @@
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Code-Review+1: Swapnil Kulkarni (coolsvap) <me@coolsvap.net>
+Code-Review+1: Gerard Braad <me@gbraad.nl>
+Code-Review+2: Stephanie Miller <stephane@alum.mit.edu>
+Workflow+1: greghaynes <greg@greghaynes.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 05 Jul 2016 19:13:06 +0000
+Reviewed-on: https://review.openstack.org/294748
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

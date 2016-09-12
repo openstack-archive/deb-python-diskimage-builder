@@ -1,0 +1,13 @@
+Code-Review+1: azher ullah khan <azkhan@hpe.com>
+Code-Review+2: James Slagle <jslagle@redhat.com>
+Code-Review+2: Derek Higgins <derekh@redhat.com>
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+1: Pino Toscano <ptoscano@redhat.com>
+Workflow+1: Derek Higgins <derekh@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 16 Sep 2015 23:13:05 +0000
+Reviewed-on: https://review.openstack.org/218100
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

@@ -1,0 +1,15 @@
+Code-Review+2: Ian Wienand <iwienand@redhat.com>
+Code-Review+1: Dmitry Tantsur <divius.inside@gmail.com>
+Code-Review+1: Stephen Balukoff <stephen@balukoff.com>
+Code-Review+1: Michael Johnson <johnsomor@gmail.com>
+Code-Review+1: Doug Wiegley <dougwig@parkside.io>
+Code-Review+1: Adam Harwell <flux.adam@gmail.com>
+Code-Review+1: Phillip Toohill <phillip.toohill@rackspace.com>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Workflow+1: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 14 Jan 2016 18:10:19 +0000
+Reviewed-on: https://review.openstack.org/267271
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

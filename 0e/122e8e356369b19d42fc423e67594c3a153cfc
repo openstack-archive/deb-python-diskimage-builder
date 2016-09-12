@@ -1,0 +1,9 @@
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Workflow+1: Ben Nemec <openstack@nemebean.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 03 Nov 2015 20:56:02 +0000
+Reviewed-on: https://review.openstack.org/229335
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

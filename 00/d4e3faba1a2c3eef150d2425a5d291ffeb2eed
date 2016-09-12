@@ -1,0 +1,9 @@
+Code-Review+2: Steve Kowalik <steven@wedontsleep.org>
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Workflow+1: greghaynes <greg@greghaynes.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 05 Aug 2015 05:00:27 +0000
+Reviewed-on: https://review.openstack.org/209017
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

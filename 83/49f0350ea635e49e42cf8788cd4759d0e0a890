@@ -1,0 +1,14 @@
+Code-Review+2: Marios Andreou <marios@redhat.com>
+Code-Review+1: Evgeny Antyshev <eantyshev@virtuozzo.com>
+Code-Review+2: Derek Higgins <derekh@redhat.com>
+Code-Review+1: Joshua Hesketh <joshua.hesketh@rackspace.com>
+Code-Review+1: Abel Lopez <abelopez@cisco.com>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+2: Dan Prince <dprince@redhat.com>
+Workflow+1: Derek Higgins <derekh@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 03 Sep 2015 06:27:21 +0000
+Reviewed-on: https://review.openstack.org/211124
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

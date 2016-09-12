@@ -1,0 +1,11 @@
+Code-Review+1: Matthew Thode <mthode@mthode.org>
+Code-Review+1: Andreas Florath <andreas@florath.net>
+Code-Review+2: Ian Wienand <iwienand@redhat.com>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Workflow+1: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 27 Jun 2016 18:53:52 +0000
+Reviewed-on: https://review.openstack.org/333084
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

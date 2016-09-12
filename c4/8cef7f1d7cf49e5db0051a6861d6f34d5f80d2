@@ -1,0 +1,9 @@
+Code-Review+2: Stephanie Miller <stephane@alum.mit.edu>
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Workflow+1: greghaynes <greg@greghaynes.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 29 Jun 2016 21:38:37 +0000
+Reviewed-on: https://review.openstack.org/335169
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

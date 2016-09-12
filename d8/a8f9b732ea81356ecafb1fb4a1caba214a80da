@@ -1,0 +1,11 @@
+Code-Review+1: Dmitry Tantsur <divius.inside@gmail.com>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+1: James Carey <jecarey@yerac.com>
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Workflow+1: Ben Nemec <openstack@nemebean.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 25 Sep 2015 19:41:30 +0000
+Reviewed-on: https://review.openstack.org/220306
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

@@ -1,0 +1,15 @@
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Code-Review+1: Chris Krelle <nobodycam@gmail.com>
+Code-Review+1: Dmitry Tantsur <divius.inside@gmail.com>
+Code-Review+1: John Trowbridge <trown@redhat.com>
+Code-Review+1: Jim Rollenhagen <jim@jimrollenhagen.com>
+Code-Review+1: Om Kumar <om.kumar@hpe.com>
+Code-Review+1: Josh Gachnang <josh@pcsforeducation.com>
+Code-Review+2: Devananda van der Veen <devananda.vdv@gmail.com>
+Workflow+1: Devananda van der Veen <devananda.vdv@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 04 Aug 2015 07:27:30 +0000
+Reviewed-on: https://review.openstack.org/198771
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

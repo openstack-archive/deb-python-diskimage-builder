@@ -1,0 +1,13 @@
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Code-Review+1: azher ullah khan <azkhan@hpe.com>
+Code-Review+1: Antoine Musso <hashar@free.fr>
+Code-Review+2: Steve Kowalik <steven@wedontsleep.org>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+1: venkatamahesh <Venkata.Kotha@infinite.com>
+Workflow+1: Steve Kowalik <steven@wedontsleep.org>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 16 Sep 2015 12:52:08 +0000
+Reviewed-on: https://review.openstack.org/218043
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

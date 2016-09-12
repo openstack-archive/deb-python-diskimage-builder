@@ -1,0 +1,9 @@
+Code-Review+2: Chris Jones <cmsj@tenshu.net>
+Code-Review+2: James Slagle <jslagle@redhat.com>
+Workflow+1: James Slagle <jslagle@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 05 Oct 2015 20:56:09 +0000
+Reviewed-on: https://review.openstack.org/229326
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

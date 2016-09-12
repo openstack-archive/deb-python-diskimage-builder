@@ -1,0 +1,9 @@
+Code-Review+2: Steven Hardy <shardy@redhat.com>
+Code-Review+2: Dan Prince <dprince@redhat.com>
+Workflow+1: Dan Prince <dprince@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sun, 17 Jan 2016 14:26:57 +0000
+Reviewed-on: https://review.openstack.org/268212
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

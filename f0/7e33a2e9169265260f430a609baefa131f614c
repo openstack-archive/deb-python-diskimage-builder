@@ -1,0 +1,13 @@
+Code-Review+2: Jiri Stransky <jistr@redhat.com>
+Code-Review+1: Sagi Shnaidman <sshnaidm@redhat.com>
+Code-Review+2: John Trowbridge <trown@redhat.com>
+Workflow+1: John Trowbridge <trown@redhat.com>
+Workflow+1: Jiri Stransky <jistr@redhat.com>
+Code-Review+1: Lukas Bezdicka <social@v3.sk>
+Code-Review+1: Peter Stachowski <peter@tesora.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 16 May 2016 22:46:31 +0000
+Reviewed-on: https://review.openstack.org/316789
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

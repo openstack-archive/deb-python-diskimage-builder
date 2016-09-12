@@ -1,0 +1,16 @@
+Code-Review+1: Antoine Musso <hashar@free.fr>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+1: Lucas Alvares Gomes <lucasagomes@gmail.com>
+Code-Review+1: Gael Chamoulaud <gchamoul@redhat.com>
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Code-Review+1: Clint Adams <clint@gcfm.net>
+Code-Review+1: Dmitry Tantsur <divius.inside@gmail.com>
+Code-Review+1: Tan Lin <lin.tan@intel.com>
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Workflow+1: greghaynes <greg@greghaynes.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 12 Feb 2016 20:28:50 +0000
+Reviewed-on: https://review.openstack.org/219562
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

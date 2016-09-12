@@ -1,0 +1,13 @@
+Code-Review+1: Gary Duan <duanlg@live.cn>
+Code-Review+1: Jane.zhang <jian.zhang8@hpe.com>
+Code-Review+1: Ye-hong Fang <hongyefang@gmail.com>
+Code-Review+1: Nisha Agarwal <agarwalnisha1980@gmail.com>
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+2: James Slagle <jslagle@redhat.com>
+Workflow+1: James Slagle <jslagle@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 29 Sep 2015 12:28:08 +0000
+Reviewed-on: https://review.openstack.org/215060
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

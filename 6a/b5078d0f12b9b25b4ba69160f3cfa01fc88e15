@@ -1,0 +1,10 @@
+Code-Review+2: Clint 'SpamapS' Byrum <clint@fewbar.com>
+Code-Review+2: Derek Higgins <derekh@redhat.com>
+Code-Review+2: Ian Wienand <iwienand@redhat.com>
+Workflow+1: Ian Wienand <iwienand@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 08 Feb 2016 07:28:54 +0000
+Reviewed-on: https://review.openstack.org/239562
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

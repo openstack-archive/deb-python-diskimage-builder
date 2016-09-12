@@ -1,0 +1,11 @@
+Code-Review+1: Arie Bregman <abregman@redhat.com>
+Code-Review+2: Ian Wienand <iwienand@redhat.com>
+Code-Review+1: Julia Kreger <juliaashleykreger@gmail.com>
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Workflow+1: Ben Nemec <openstack@nemebean.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 21 Mar 2016 18:42:06 +0000
+Reviewed-on: https://review.openstack.org/289364
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

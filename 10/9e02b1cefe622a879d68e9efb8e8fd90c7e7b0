@@ -1,0 +1,11 @@
+Code-Review+1: Julia Kreger <juliaashleykreger@gmail.com>
+Code-Review+1: Dmitry Tantsur <divius.inside@gmail.com>
+Code-Review+2: James Slagle <jslagle@redhat.com>
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Workflow+1: Ben Nemec <openstack@nemebean.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 03 Sep 2015 15:05:24 +0000
+Reviewed-on: https://review.openstack.org/218879
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

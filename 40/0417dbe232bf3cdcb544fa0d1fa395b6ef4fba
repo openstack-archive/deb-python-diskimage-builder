@@ -1,0 +1,10 @@
+Code-Review+2: James Slagle <jslagle@redhat.com>
+Code-Review+1: Thiago Paiva Brito <thiagop@lsd.ufcg.edu.br>
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Workflow+1: Ben Nemec <openstack@nemebean.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 18 Sep 2015 11:07:51 +0000
+Reviewed-on: https://review.openstack.org/209079
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master
