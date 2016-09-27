@@ -1,6 +1,7 @@
 [Unit]
 Description=DHCP interface %I
-After=network.service network.target
+Before=network-pre.target
+Wants=network-pre.target
 
 ConditionPathExists=!/etc/sysconfig/network-scripts/ifcfg-%I
 

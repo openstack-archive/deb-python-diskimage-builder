@@ -1,3 +1,3 @@
-isc-dhcp-client:
+dhcp-client:
 net-tools:
-python-pip:
+ifupdown:

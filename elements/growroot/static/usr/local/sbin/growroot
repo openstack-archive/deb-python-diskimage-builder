@@ -1,0 +1,36 @@
+#!/bin/bash
+# dib-lint: disable=dibdebugtrace
+
+set -exu
+set -o pipefail
+
+root_dev=$(df -P / | tail -n 1 | awk '/.*/ { print $1 }')
+
+if [ -z "${root_dev}" ]; then
+    echo "*** Root device not found?"
+    exit 1
+fi
+
+udev_root=$(udevadm info --query=all --name $root_dev)
+
+part=$(grep ID_PART_ENTRY_DISK <<< "${udev_root}" | cut -d= -f2)
+if [ -z "${part}" ]; then
+    echo "*** Root partition not found!"
+    exit 1
+fi
+part_no=$(grep ID_PART_ENTRY_NUMBER <<< "${udev_root}" | cut -d= -f2)
+if [ -z "${part_no}" ]; then
+    echo "*** Root partition number not found!"
+    exit 1
+fi
+
+disk=$(find /sys/dev/block -name ${part})
+disk="/dev/$(source ${disk}/uevent; echo $DEVNAME)"
+
+set +e
+growpart $disk $part_no
+# Error code 1 means no change
+if [ "$?" -le 1 ]; then
+    # always return true because this might not work if were are non ext4
+    resize2fs $root_dev || true
+fi

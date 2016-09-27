@@ -1,0 +1,34 @@
+{
+  "distro": {
+    "rhel": {
+      "tgt": "targetcli",
+      "curl": "curl",
+      "ironic-python-agent": "openstack-ironic-python-agent"
+    },
+    "centos":{
+      "tgt": "scsi-target-utils",
+      "curl": "curl",
+      "ironic-python-agent": "openstack-ironic-python-agent"
+    }
+  },
+  "family": {
+    "redhat": {
+      "tgt": "scsi-target-utils",
+      "curl": "curl",
+      "ironic-python-agent": "openstack-ironic-python-agent",
+      "qemu-utils": "qemu-img",
+      "python-dev": "python2-devel"
+    },
+    "debian": {
+      "tgt": "tgt",
+      "curl": "curl"
+    }
+  },
+  "default": {
+    "tgt": "tgt",
+    "curl": "curl",
+    "ironic-python-agent": "openstack-ironic-python-agent",
+    "qemu-utils": "qemu-utils",
+    "python-dev": "python-dev"
+  }
+}

@@ -14,6 +14,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+
+# dib-lint: disable=safe_sudo
+
 if [ "${DIB_DEBUG_TRACE:-0}" -gt 0 ]; then
     set -x
 fi
@@ -32,65 +35,228 @@ DIB_YUMCHROOT_EXTRA_ARGS=${DIB_YUMCHROOT_EXTRA_ARGS:-}
 YUMCHROOT_TARBALL=$DIB_IMAGE_CACHE/yumchroot-${DISTRO_NAME}-${DIB_RELEASE}-${ARCH}.tar.gz
 # TODO Maybe deal with DIB_DISTRIBUTION_MIRROR
 http_proxy=${http_proxy:-}
+YUM=${YUM:-yum}
 
-set -x
+WORKING=$(mktemp --tmpdir=${TMP_DIR:-/tmp} -d)
+EACTION="rm -r $WORKING"
+trap "$EACTION" EXIT
+
+YUM_CACHE=$DIB_IMAGE_CACHE/yum
+mkdir -p $YUM_CACHE
+
+# Note, on Debian/Ubuntu, %_dbpath is set in the RPM macros as
+# ${HOME}/.rpmdb/ -- this makes sense as RPM isn't the system
+# packager.  This path is relative to the "--root" argument
+_RPM="rpm --dbpath=/var/lib/rpm"
+
+# install the [fedora|centos]-[release|repo] packages inside the
+# chroot, which are needed to bootstrap yum/dnf
+#
+# note this runs outside the chroot, where we're assuming the platform
+# has yum/yumdownloader
+function _install_repos {
+    local packages
+
+    # pre-install the base system packages via rpm.  We previously
+    # just left it up to yum to drag these in when we "yum install
+    # yum" in the chroot in _install_pkg_manager.  This raised a small
+    # problem that inside the empty chroot yum went ahead and did a
+    # mkdir for /var/run to put some pid file in, which then messed up
+    # the "filesystem" package making /var/run a symlink to /run
+    # ... which leads to odd issues with a running system.
+    #
+    # TODO: these packages still have some small %posttrans stuff that
+    # depends on other packages (see rhbz#1306489) ... maybe the idea
+    # is that they are only installed in one big transaction with the
+    # rest of the system?  but we don't want to use yum to do this
+    # (see above) so ...
+    packages="basesystem filesystem setup "
+
+    packages+="${DISTRO_NAME}-release "
+    # after fedora21, this is split into into a separate -repos
+    # package
+    if [ $DISTRO_NAME = fedora ]; then
+        packages+="${DISTRO_NAME}-repos "
+    fi
+
+    yumdownloader \
+        --releasever=$DIB_RELEASE \
+        --setopt=reposdir=$TMP_HOOKS_PATH/yum.repos.d \
+        --destdir=$WORKING \
+        ${packages}
+
+    # --nodeps works around these wanting /bin/sh in some fedora
+    # releases, see rhbz#1265873
+    sudo $_RPM --root $TARGET_ROOT --nodeps -ivh $WORKING/*rpm
+}
+
+# _install_pkg_manager packages...
+#
+# install the package manager packages.  This is done outside the chroot
+# and with yum from the build system.
+# TODO: one day build systems will be dnf only, but we don't handle
+# that right now
+function _install_pkg_manager {
+    # Install into the chroot, using the gpg keys from the release
+    # rpm's installed in the chroot
+    sudo sed -i "s,/etc/pki/rpm-gpg,$TARGET_ROOT/etc/pki/rpm-gpg,g" \
+        $TARGET_ROOT/etc/yum.repos.d/*repo
+
+    # See notes on $_RPM variable -- we need to override the
+    # $HOME-based dbpath set on debian/ubuntu here.  Unfortunately,
+    # yum does not have a way to override rpm macros from the command
+    # line.  So we modify the user's ~/.rpmmacros to set %_dbpath back
+    # to "/var/lib/rpm" (note, this is taken relative to the
+    # --installroot).
+    #
+    # Also note, we only want this done around this call -- this is
+    # the only place we are using yum outside the chroot, and hence
+    # picking up the base-system's default rpm macros.  For example,
+    # the yumdownloader calls above in _install_repos want to use
+    # ~/.rpmdb/ ... there is nothing in the build-system /var/lib/rpm!
+    #
+    # Another issue we hit is having to set --releasedir here.  yum
+    # determines $releasevar based on (more or less) "rpm -q
+    # --whatprovides $distroverpkg".  By default, this is
+    # "redhat-release" (fedora-release provides redhat-release) but
+    # some platforms like CentOS override it in /etc/yum.conf (to
+    # centos-release in their case).  You can't override this (see
+    # [1]), but setting --releasever works around this.
+    #
+    # [1] https://bugzilla.redhat.com/show_bug.cgi?id=1287333
+    (
+        flock -w 1200 9 || die "Can not lock .rpmmacros"
+        echo "%_dbpath /var/lib/rpm" >> $HOME/.rpmmacros
+
+        _lang_pack=""
+
+        if [ $DISTRO_NAME = "fedora" -a $DIB_RELEASE -le 23 ]; then
+            # _install_langs is a rpm macro that limits the translation
+            # files, etc installed by packages.  For Fedora 23 [1], the
+            # glibc-common package will obey this to only install the
+            # listed locales, keeping things much smaller (we still have
+            # to clean up locales manually on centos7).  We install just
+            # en_US because people often ssh in with that locale, but
+            # leave out everything else.  Note that yum has an option to
+            # set this from the command-line [2], but the yum in trusty we
+            # are using is too old to have it.  So we set it directly in
+            # the macros file
+            #
+            # [1] http://pkgs.fedoraproject.org/cgit/rpms/glibc.git/commit/glibc.spec?h=f23&id=91764bd9ec690d4b8a886c0a3a104aac12d340d2
+            # [2] http://yum.baseurl.org/gitweb?p=yum.git;a=commit;h=26128173b362474456e8f0642073ecb0322ed031
+            echo "%_install_langs C:en_US:en_US.UTF-8" >> $HOME/.rpmmacros
+        elif [ $DISTRO_NAME = "fedora" -a $DIB_RELEASE -ge 24 ]; then
+            # glibc on F24 has split locales into "langpack" packages.
+            # Yum doesn't understand the weak-dependencies glibc now
+            # uses to get the minimal-langpack and chooses a
+            # random(ish) one that satisfies the locale dependency
+            # (rhbz#1349258).  Work-around this by explicitly requring
+            # the minimal and english (for en_US.UTF-8) pack.
+            _lang_pack="glibc-minimal-langpack glibc-langpack-en"
+        fi
+
+        sudo -E yum -y \
+            --disableexcludes=all \
+            --setopt=cachedir=$YUM_CACHE/$ARCH/$DIB_RELEASE \
+            --setopt=reposdir=$TARGET_ROOT/etc/yum.repos.d \
+            --releasever=$DIB_RELEASE \
+            --installroot $TARGET_ROOT \
+            install $@ ${_lang_pack} && rc=$? || rc=$?
+
+        # We modified the base system - make sure we clean up always!
+        rm $HOME/.rpmmacros.dib.lock
+        # sed makes it easy to remove last line, but not last n lines...
+        sed -i '$ d' $HOME/.rpmmacros; sed -i '$ d' $HOME/.rpmmacros;
+        if [ $rc != 0 ]; then
+            die "Initial yum install to chroot failed!  Can not continue."
+        fi
+    ) 9>$HOME/.rpmmacros.dib.lock
+
+    # Set gpg path back because subsequent actions will take place in
+    # the chroot
+    sudo sed -i "s,$TARGET_ROOT/etc/pki/rpm-gpg,/etc/pki/rpm-gpg,g" \
+        $TARGET_ROOT/etc/yum.repos.d/*repo
+}
+
 if [ -n "$DIB_OFFLINE" -o -n "${DIB_YUMCHROOT_USE_CACHE:-}" ] && [ -f $YUMCHROOT_TARBALL ] ; then
     echo $YUMCHROOT_TARBALL found in cache. Using.
     sudo tar -C $TARGET_ROOT --numeric-owner -xzf $YUMCHROOT_TARBALL
 else
+    # Note this is not usually done for root.d elements (see
+    # lib/common-functions:mount_proc_dev_sys) but it's important that
+    # we have things like /dev/urandom around inside the chroot for
+    # the rpm [pre|post]inst scripts within the packages.
+    sudo mkdir -p $TARGET_ROOT/proc $TARGET_ROOT/dev $TARGET_ROOT/sys
+    sudo mount -t proc none $TARGET_ROOT/proc
+    sudo mount --bind /dev $TARGET_ROOT/dev
+    sudo mount --bind /dev/pts $TARGET_ROOT/dev/pts
+    sudo mount -t sysfs none $TARGET_ROOT/sys
+
+    # initalize rpmdb
     sudo mkdir -p $TARGET_ROOT/var/lib/rpm
-    sudo rpm --root $TARGET_ROOT --initdb
+    sudo $_RPM --root $TARGET_ROOT --initdb
 
-    WORKING=$(mktemp --tmpdir=${TMP_DIR:-/tmp} -d)
-    EACTION="rm -r $WORKING"
-    trap "$EACTION" EXIT
-
-    yumdownloader \
-            --releasever=$DIB_RELEASE \
-            --setopt=reposdir=$TMP_HOOKS_PATH/yum.repos.d \
-            --destdir=$WORKING \
-        ${DISTRO_NAME}-release
-    RELEASE_RPMS="${DISTRO_NAME}-release"
-    if [ $DISTRO_NAME = fedora ] ; then
-        yumdownloader \
-                --releasever=$DIB_RELEASE \
-                --setopt=reposdir=$TMP_HOOKS_PATH/yum.repos.d \
-                --destdir=$WORKING \
-            ${DISTRO_NAME}-repos
-        RELEASE_RPMS="${RELEASE_RPMS} ${DISTRO_NAME}-repos"
-    fi
-    sudo rpm --root $TARGET_ROOT -ivh $WORKING/*rpm
-
-    YUM_CACHE=$DIB_IMAGE_CACHE/yum
-
-    # Install yum into the chroot but use the gpg keys we've installed
-    # directly into the chroot for the purpose
-    sudo sed -i "s,/etc/pki/rpm-gpg,$TARGET_ROOT/etc/pki/rpm-gpg,g" $TARGET_ROOT/etc/yum.repos.d/*repo
-    sudo yum -y \
-            --setopt=cachedir=$YUM_CACHE/$ARCH/$DIB_RELEASE \
-            --setopt=reposdir=$TARGET_ROOT/etc/yum.repos.d \
-            --installroot $TARGET_ROOT \
-        install yum
-
-    # Set gpg path back because subsequent actions will take place in the chroot
-    sudo sed -i "s,$TARGET_ROOT/etc/pki/rpm-gpg,/etc/pki/rpm-gpg,g" $TARGET_ROOT/etc/yum.repos.d/*repo
-
-    # We have to do this next bit outside of the chroot to get far enough
-    # that dib-run-parts can operate
+    # this makes sure that running yum/dnf in the chroot it can get
+    # out to download stuff
+    sudo mkdir $TARGET_ROOT/etc
     sudo cp /etc/resolv.conf $TARGET_ROOT/etc/resolv.conf
 
-    # Same logic as in the yum element to provide for yum caching
-    # copied here because the sequencing is wrong otherwise
+    # Bind mount the external yum cache inside the chroot.  Same logic
+    # as in the yum element to provide for yum caching copied here
+    # because the sequencing is wrong otherwise
     sudo mkdir -p $TMP_MOUNT_PATH/tmp/yum
     sudo mount --bind $YUM_CACHE $TMP_MOUNT_PATH/tmp/yum
-    sudo chroot $TARGET_ROOT yum -y --releasever=$DIB_RELEASE \
-        --setopt=cachedir=/tmp/yum/$ARCH/$DIB_RELEASE \
-        install $RELEASE_RPMS
 
-    sudo chroot $TARGET_ROOT yum makecache
-    sudo chroot $TARGET_ROOT yum -y \
+    _install_repos
+
+    # install dnf for >= f22
+    if [ $DIB_RELEASE -ge 22 ]; then
+        _install_pkg_manager dnf dnf-plugins-core yum
+    else
+        _install_pkg_manager yum
+    fi
+
+    # we just installed yum/dnf with "outside" tools (yum/rpm) which
+    # might have created /var/lib/[yum|rpm] (etc) that are slighlty
+    # incompatible.  Refresh everything with the in-chroot tools
+    sudo -E chroot $TARGET_ROOT rpm --rebuilddb
+    sudo -E chroot $TARGET_ROOT ${YUM} clean all
+
+    # populate the lang reduction macro in the chroot
+    echo "%_install_langs C:en_US:en_US.UTF-8" | \
+        sudo tee -a $TARGET_ROOT/etc/rpm/macros.langs > /dev/null
+
+    # bootstrap the environment within the chroot; bring in new
+    # metadata with an update and install some base packages we need.
+    sudo -E chroot $TARGET_ROOT ${YUM} -y update
+    sudo -E chroot $TARGET_ROOT ${YUM} -y \
         --setopt=cachedir=/tmp/yum/$ARCH/$DIB_RELEASE \
         install passwd findutils sudo util-linux-ng
+
+    # Put in a dummy /etc/resolv.conf over the temporary one we used
+    # to bootstrap.  systemd has a bug/feature [1] that it will assume
+    # you want systemd-networkd as the network manager and create a
+    # broken symlink to /run/... if the base image doesn't have one.
+    # This broken link confuses things like dhclient.
+    # [1] https://bugzilla.redhat.com/show_bug.cgi?id=1197204
+    echo -e "# This file intentionally left blank\n" | \
+        sudo tee $TARGET_ROOT/etc/resolv.conf
+
+    # set the most reliable UTF-8 locale
+    echo -e 'LANG="en_US.UTF-8"' | \
+        sudo tee $TARGET_ROOT/etc/locale.conf
+    # default to UTC
+    sudo -E chroot $TARGET_ROOT ln -sf /usr/share/zoneinfo/UTC \
+        /etc/localtime
+
+    # cleanup
+    # TODO : move this into a exit trap; and reconsider how
+    # this integrates with the global exit cleanup path.
+    sudo umount $TMP_MOUNT_PATH/tmp/yum
+    sudo umount $TARGET_ROOT/proc
+    sudo umount $TARGET_ROOT/dev/pts
+    sudo umount $TARGET_ROOT/dev
+    sudo umount $TARGET_ROOT/sys
 
     # RPM doesn't know whether files have been changed since install
     # At this point though, we know for certain that we have changed no
@@ -98,11 +264,11 @@ else
     for newfile in $(sudo find $TARGET_ROOT -type f -name '*rpmnew') ; do
         sudo mv $newfile $(echo $newfile | sed 's/.rpmnew$//')
     done
-    sudo rm $TARGET_ROOT/etc/resolv.conf
-    sudo umount $TMP_MOUNT_PATH/tmp/yum
 
     echo Caching result in $YUMCHROOT_TARBALL
-    sudo tar --numeric-owner -C $TARGET_ROOT -zcf $YUMCHROOT_TARBALL --exclude='./tmp/*' .
+    sudo tar --numeric-owner \
+        -C $TARGET_ROOT \
+        -zcf $YUMCHROOT_TARBALL --exclude='./tmp/*' .
 fi
 
 sudo rm -f ${TARGET_ROOT}/.extra_settings

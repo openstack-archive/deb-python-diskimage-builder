@@ -37,5 +37,3 @@ if [ "$DIB_DEBIAN_ALT_INIT_PACKAGE" != "sysvinit" ]; then
         /etc/apt/preferences.d/sysvinit > /etc/apt/preferences.d/sysvinit
 fi
 
-# specify a hostname so that cloud-init does not default to (None)
-echo 'hostname: debian' > /etc/cloud/cloud.cfg.d/01_hostname.cfg

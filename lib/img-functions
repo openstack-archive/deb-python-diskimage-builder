@@ -1,3 +1,4 @@
+#!/bin/bash
 # Copyright 2012 Hewlett-Packard Development Company, L.P.
 # All Rights Reserved.
 #
@@ -28,6 +29,17 @@ function unmount_image () {
     fi
 }
 
+function fstrim_image () {
+    # A race condition can occur when trying to fstrim immediately after
+    # deleting a file resulting in that free space not being reclaimed.
+    # Calling sync before fstrim is a workaround for this behaviour.
+    # https://lists.gnu.org/archive/html/qemu-devel/2014-03/msg02978.html
+    sync
+
+    # Discard all unused bytes
+    sudo fstrim "${TMP_BUILD_DIR}/mnt"
+}
+
 function trap_cleanup() {
     exitval=$?
     cleanup
@@ -38,21 +50,6 @@ function cleanup () {
     unmount_image
     cleanup_build_dir
     cleanup_image_dir
-}
-
-function ensure_nbd () {
-    NBD=`which qemu-nbd` || true
-    if [ -z "$NBD" ]; then
-        echo "qemu-nbd is not found in your PATH"
-        echo "Please install it on your system"
-        exit 1
-    fi
-    # prep nbd for mounting
-    (lsmod | grep '^nbd ' >/dev/null) || sudo modprobe nbd max_part=16
-}
-
-function ensure_sudo () {
-    sudo echo "Ensuring sudo is available"
 }
 
 # Helper function to run a command inside the chroot
@@ -66,7 +63,7 @@ function run_in_target () {
     # Bug: #1330290
     # Force the inclusion of a typical set of dirs in PATH, this is needed for guest
     # distros that have path elements not in the host PATH.
-    sudo -E TMPDIR= chroot $TMP_MOUNT_PATH env PATH="\$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" sh -c "$cmd"
+    sudo -E chroot $TMP_MOUNT_PATH env -u TMPDIR PATH="\$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" sh -c "$cmd"
     export HOME=$ORIG_HOME
 }
 
@@ -109,7 +106,9 @@ function finalise_base () {
         fi
     fi
     # Cleanup /tmp in the guest, so there is less cruft left there
-    unmount_dir $TMP_MOUNT_PATH/tmp
+    if [ -d "$TMP_MOUNT_PATH/tmp" ]; then
+        unmount_dir $TMP_MOUNT_PATH/tmp
+    fi
     find $TMP_MOUNT_PATH/tmp -maxdepth 1 -mindepth 1 | xargs sudo rm -rf --one-file-system
 }
 
@@ -132,7 +131,7 @@ function compress_and_save_image () {
         OUT_IMAGE_PATH=$1-new
     else
         echo "Converting image using qemu-img convert"
-        qemu-img convert ${COMPRESS_IMAGE:+-c} -f raw $TMP_IMAGE_PATH -O $IMAGE_TYPE $EXTRA_OPTIONS $1-new
+        qemu-img convert ${COMPRESS_IMAGE:+-c} -f raw -O $IMAGE_TYPE $EXTRA_OPTIONS $TMP_IMAGE_PATH $1-new
     fi
 
     OUT_IMAGE_PATH=$1-new
@@ -190,6 +189,9 @@ function select_boot_kernel_initrd () {
     elif [ -f $TARGET_ROOT/etc/SuSE-release ]; then
         KERNEL=$(basename $(readlink -e $BOOTDIR/vmlinuz))
         RAMDISK=$(basename $(readlink -e $BOOTDIR/initrd))
+    elif [[ -f "${TARGET_ROOT}"/etc/gentoo-release ]]; then
+        KERNEL="$(basename $(ls -1rv $BOOTDIR/kernel-*-openstack | head -n 1))"
+        RAMDISK="$(basename $(ls -1rv $BOOTDIR/initramfs-*-openstack | head -n 1))"
     else
         echo "ERROR: Unable to detect operating system"
         exit 1

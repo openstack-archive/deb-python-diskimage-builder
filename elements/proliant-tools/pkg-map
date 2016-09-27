@@ -1,0 +1,15 @@
+{
+    "family": {
+        "debian": {
+            "alien": "alien"
+        },
+        "redhat": {
+            "python-dev": "python2-devel"
+        }
+    },
+    "default": {
+        "alien": "",
+        "gcc": "gcc",
+        "python-dev": "python-dev"
+    }
+}

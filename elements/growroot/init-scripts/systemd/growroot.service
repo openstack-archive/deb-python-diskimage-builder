@@ -1,0 +1,13 @@
+[Unit]
+Description=Grow root partition
+Wants=systemd-udev-settle.service
+After=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/growroot
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target

@@ -18,12 +18,23 @@ and Fedora.
 
 The `DIB_OFFLINE` or more specific `DIB_DEBIAN_USE_DEBOOTSTRAP_CACHE`
 variables can be set to prefer the use of a pre-cached root filesystem
-tarball.
+tarball. Setting `DIB_OFFLINE` may cause other element to use cached data,
+while `DIB_DEBIAN_USE_DEBOOTSTRAP_CACHE` only functions in the debootstrap
+element.
 
 The `DIB_DEBOOTSTRAP_EXTRA_ARGS` environment variable may be used to
 pass extra arguments to the debootstrap command used to create the
 base filesystem image. If --keyring is is used in `DIB_DEBOOTSTRAP_EXTRA_ARGS`,
 it will override `DIB_APT_KEYRING` if that is used as well.
+
+The `DIB_DEBOOTSTRAP_CACHE` variable can be used to cache the created root
+filesystem. By default this is 0 (disabled) and any other value enables this.
+If run in offline mode then the most recently cached rootfs is used instead of
+being built.
+
+The `DIB_DEBOOTSTRAP_DEFAULT_LOCALE` environment variable may be used
+to configure the default locale of the base image. It defaults to
+C.UTF-8.
 
 -------------------
 Note on ARM systems

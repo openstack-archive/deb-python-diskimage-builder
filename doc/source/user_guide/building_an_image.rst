@@ -40,3 +40,49 @@ Other elements modify our image in some way. The 'vm' element in our example
 above ensures that our image has a bootloader properly installed. This is only
 needed for certain use cases and certain output formats and therefore it is
 not performed by default.
+
+Output Formats
+--------------
+
+By default a qcow2 image is created by the disk-image-create command. Other
+output formats may be specified using the `-t <format>` argument. Multiple
+output formats can also be specified by comma separation. The supported output
+formats are:
+
+ * qcow2
+ * tar
+ * vhd
+ * docker
+ * raw
+
+Filesystem Caveat
+-----------------
+
+By default, disk-image-create uses a 4k byte-to-inode ratio when creating the
+filesystem in the image. This allows large 'whole-system' images to utilize
+several TB disks without exhausting inodes. In contrast, when creating images
+intended for tenant instances, this ratio consumes more disk space than an
+end-user would expect (e.g. a 50GB root disk has 47GB avail.). If the image is
+intended to run within a tens to hundrededs of gigabyte disk, setting the
+byte-to-inode ratio to the ext4 default of 16k will allow for more usable space
+on the instance. The default can be overridden by passing --mkfs-options like
+this::
+
+    disk-image-create --mkfs-options '-i 16384' <distro> vm
+
+Speedups
+--------
+If you have 4GB of available physical RAM (as reported by /proc/meminfo
+MemTotal), or more, diskimage-builder will create a tmpfs mount to build the
+image in. This will improve image build time by building it in RAM.
+By default, the tmpfs file system uses 50% of the available RAM.
+Therefore, the RAM should be at least the double of the minimum tmpfs
+size required.
+For larger images, when no sufficient amount of RAM is available, tmpfs
+can be disabled completely by passing --no-tmpfs to disk-image-create.
+ramdisk-image-create builds a regular image and then within that image
+creates ramdisk.
+If tmpfs is not used, you will need enough room in /tmp to store two
+uncompressed cloud images. If tmpfs is used, you would still need /tmp space
+for one uncompressed cloud image and about 20% of that image for working files.
+

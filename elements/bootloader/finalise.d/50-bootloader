@@ -1,0 +1,205 @@
+#!/bin/bash
+
+# Configure grub. Note that the various conditionals here are to handle
+# different distributions gracefully.
+
+if [ ${DIB_DEBUG_TRACE:-1} -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
+
+# FIXME:
+[ -n "$IMAGE_BLOCK_DEVICE" ]
+PART_DEV=$IMAGE_BLOCK_DEVICE
+if [[ "$ARCH" =~ "ppc" ]]; then
+    BOOT_DEV=$(echo $IMAGE_BLOCK_DEVICE | sed -e 's#p2##')'p1'
+else
+    BOOT_DEV=$(echo $IMAGE_BLOCK_DEVICE | sed -e 's#p1##' | sed -e 's#mapper/##')
+fi
+
+function install_extlinux {
+    install-packages -m bootloader extlinux
+
+    echo "Installing Extlinux..."
+
+    # Find and install mbr.bin
+    for MBR in /usr/share/syslinux/mbr.bin /usr/lib/syslinux/mbr.bin \
+        /usr/lib/extlinux/mbr.bin /usr/lib/EXTLINUX/mbr.bin ; do
+        if [ -f $MBR ]; then
+            break
+        fi
+    done
+    if [ ! -f $MBR ]; then
+        echo "mbr.bin (from EXT/SYSLINUX) not found."
+        exit 1
+    fi
+
+    dd if=$MBR of=$BOOT_DEV
+
+    # Find any pre-created extlinux install directory
+    for EXTDIR in /boot/extlinux /boot/syslinux ; do
+        if [ -d $EXTDIR ] ; then
+            break
+        fi
+    done
+    if [ ! -d $EXTDIR ] ; then
+        # No install directory found so default to /boot/syslinux
+        EXTDIR=/boot/syslinux
+        mkdir -p $EXTDIR
+    fi
+
+    # Finally install extlinux
+    extlinux --install $EXTDIR
+}
+
+function install_grub2 {
+
+    # Check for offline installation of grub
+    if [ -f "/tmp/grub/install" ] ; then
+        source /tmp/grub/install
+    elif [[ "$ARCH" =~ "ppc" ]]; then
+        install-packages -m bootloader grub-ieee1275
+    else
+        install-packages -m bootloader grub-pc
+    fi
+
+    # XXX: grub-probe on the nbd0/loop0 device returns nothing - workaround, manually
+    # specify modules. https://bugs.launchpad.net/ubuntu/+source/grub2/+bug/1073731
+    GRUBNAME=$(which grub-install) || echo "trying grub2-install"
+    if [ -z "$GRUBNAME" ]; then
+        GRUBNAME=$(which grub2-install)
+    fi
+
+    # If no GRUB2 is found, fallback to extlinux
+    if [ -z "$GRUBNAME" ] || [ $($GRUBNAME --version | grep "0.97" | wc -l) -ne 0 ]; then
+        echo "No GRUB2 found. Fallback to Extlinux..."
+        install_extlinux
+        exit 0
+    fi
+
+    echo "Installing GRUB2..."
+
+    # We need --force so grub does not fail due to being installed on the
+    # root partition of a block device.
+    GRUB_OPTS=${GRUB_OPTS:-"--force"}
+    # XXX: This is buggy:
+    # - --target=i386-pc is invalid for non-i386/amd64 architectures
+    # - and for UEFI too.
+    #    GRUB_OPTS="$GRUB_OPTS --target=i386-pc"
+    if [[ ! $GRUB_OPTS == *--target* ]] && [[ $($GRUBNAME --version) =~ ' 2.' ]]; then
+        # /sys/ comes from the host machine. If the host machine is using EFI
+        # but the image being built doesn't have EFI boot-images installed we
+        # should set the --target to use a BIOS-based boot-image.
+        #
+        # * --target tells grub what's the target platform
+        # * the boot images are placed in /usr/lib/grub/<cpu>-<platform>
+        # * i386-pc is used for BIOS-based machines
+        # http://www.gnu.org/software/grub/manual/grub.html#Installation
+        #
+        if [ -d /sys/firmware/efi ]; then
+            if [ ! -d /usr/lib/grub/*-efi ]; then
+                case $ARCH in
+                    "x86_64"|"amd64")
+                        GRUB_OPTS="$GRUB_OPTS --target=i386-pc"
+                        ;;
+                    "i386")
+                        target=i386-pc
+                        if [ -e /proc/device-tree ]; then
+                            for x in /proc/device-tree/*; do
+                                if [ -e "$x" ]; then
+                                    target="i386-ieee1275"
+                                fi
+                            done
+                        fi
+                        GRUB_OPTS="$GRUB_OPTS --target=$target"
+                        ;;
+                esac
+            fi
+        fi
+    fi
+
+    if [[ "$ARCH" =~ "ppc" ]] ; then
+        $GRUBNAME --modules="part_msdos" $GRUB_OPTS $BOOT_DEV --no-nvram
+    else
+        $GRUBNAME --modules="biosdisk part_msdos" $GRUB_OPTS $BOOT_DEV
+    fi
+
+    # This might be better factored out into a per-distro 'install-bootblock'
+    # helper.
+    if [ -d /boot/grub2 ]; then
+        GRUB_CFG=/boot/grub2/grub.cfg
+    elif [ -d /boot/grub ]; then
+        GRUB_CFG=/boot/grub/grub.cfg
+    fi
+
+    echo 'GRUB_TERMINAL="serial console"' >>/etc/default/grub
+    echo 'GRUB_GFXPAYLOAD_LINUX=text' >>/etc/default/grub
+    echo 'GRUB_CMDLINE_LINUX_DEFAULT="console=tty0 console=ttyS0,115200 no_timer_check"' >>/etc/default/grub
+    echo 'GRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1"' >>/etc/default/grub
+    if which grub2-mkconfig >/dev/null; then
+        GRUB_MKCONFIG="grub2-mkconfig -o $GRUB_CFG"
+    else
+        GRUB_MKCONFIG="grub-mkconfig -o $GRUB_CFG"
+    fi
+    DISTRO_NAME=${DISTRO_NAME:-}
+    case $DISTRO_NAME in
+        'ubuntu'|'debian')
+            sed -i -e 's/\(^GRUB_CMDLINE_LINUX.*\)"$/\1 nofb nomodeset vga=normal"/' /etc/default/grub
+            GRUB_MKCONFIG=update-grub
+        ;;
+        'fedora'|'centos7'|'centos')
+            echo 'GRUB_CMDLINE_LINUX="nofb nomodeset vga=normal"' >>/etc/default/grub
+        ;;
+        'opensuse')
+            sed -i -e 's/\(^GRUB_CMDLINE_LINUX.*\)"$/\1 nofb nomodeset vga=normal"/' /etc/default/grub
+        ;;
+    esac
+
+    # os-prober leaks /dev/sda into config file in dual-boot host
+    # Disable grub-os-prober to avoid the issue  while running
+    # grub-mkconfig
+    # Setting a flag to track whether the entry is already there in grub config
+    PROBER_DISABLED=
+    if ! grep -qe "^\s*GRUB_DISABLE_OS_PROBER=true" /etc/default/grub; then
+        PROBER_DISABLED=true
+        echo 'GRUB_DISABLE_OS_PROBER=true' >> /etc/default/grub
+    fi
+
+    $GRUB_MKCONFIG
+
+    # Remove the fix to disable os_prober
+    if [ -n "$PROBER_DISABLED" ]; then
+        sed -i '$d' /etc/default/grub
+    fi
+
+    # grub-mkconfig generates a config with the device in it,
+    # This shouldn't be needed, but old code has bugs
+    DIB_RELEASE=${DIB_RELEASE:-}
+    if [ "$DIB_RELEASE" = 'precise' ] || [ "$DIB_RELEASE" = 'wheezy' ]; then
+        sed -i "s%search --no.*%%" $GRUB_CFG
+        sed -i "s%set root=.*%set root=(hd0,1)%" $GRUB_CFG
+    fi
+    # force use of a LABEL:
+    # NOTE: Updating the grub config by hand once deployed should work, its just
+    # prepping it in a different environment that needs fiddling.
+    sed -i "s%$PART_DEV%LABEL=${DIB_ROOT_LABEL}%" $GRUB_CFG
+    sed -i "s%search --no-floppy --fs-uuid --set=root .*$%search --no-floppy --set=root --label ${DIB_ROOT_LABEL}%" $GRUB_CFG
+    sed -i "s%root=UUID=[A-Za-z0-9\-]*%root=LABEL=${DIB_ROOT_LABEL}%" $GRUB_CFG
+    if [ "$DISTRO_NAME" = 'fedora' ] ; then
+        if [ "$DIB_RELEASE" = '19' ]; then
+            sed -i "s%UUID=[A-Za-z0-9\-]*%LABEL=${DIB_ROOT_LABEL}%" /etc/fstab
+        fi
+    fi
+    # Fix efi specific instructions in grub config file
+    if [ -d /sys/firmware/efi ]; then
+        sed -i 's%\(initrd\|linux\)efi /boot%\1 /boot%g' $GRUB_CFG
+    fi
+}
+
+DIB_EXTLINUX=${DIB_EXTLINUX:-0}
+if [ "$DIB_EXTLINUX" != "0" ]; then
+    install_extlinux
+else
+    install_grub2
+fi

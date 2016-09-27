@@ -1,0 +1,4 @@
+python-diskimage-builder: shell-script-fails-syntax-check usr/share/diskimage-builder/elements/gentoo/post-install.d/99-cleanup
+python-diskimage-builder: interpreter-in-usr-local usr/share/diskimage-builder/elements/package-installs/bin/package-installs-v2 #!/usr/local/bin/dib-python
+python-diskimage-builder: interpreter-in-usr-local usr/share/diskimage-builder/elements/pkg-map/bin/pkg-map #!/usr/local/bin/dib-python
+python-diskimage-builder: interpreter-in-usr-local usr/share/diskimage-builder/elements/redhat-common/bin/map-packages #!/usr/local/bin/dib-python
