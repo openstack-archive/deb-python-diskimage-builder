@@ -1,2 +1,2 @@
 debootstrap
-package-installs
+pkg-map

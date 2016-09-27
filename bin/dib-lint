@@ -54,19 +54,28 @@ excluded() {
 }
 
 error() {
-    echo "ERROR: $1"
+    echo -e "ERROR: $1"
     rc=1
 }
+
+echo "Running dib-lint in $(pwd)"
 
 rc=0
 TMPDIR=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
 trap "rm -rf $TMPDIR" EXIT
-for i in $(find elements -type f \
-                -not -name \*~ \
-                -not -name \*.rst \
-                -not -name \*.py \
+for i in $(find elements -type f   \
+                -not -name \*~     \
+                -not -name \#\*\#  \
+                -not -name \*.orig \
+                -not -name \*.rst  \
+                -not -name \*.yaml \
+                -not -name \*.py   \
                 -not -name \*.pyc); do
+
+    echo "Checking $i"
+
     exclusions=("$(parse_exclusions $i)")
+
     # Check that files starting with a shebang are +x
     firstline=$(head -n 1 "$i")
     if [ "${firstline:0:2}" = "#!" ]; then
@@ -75,13 +84,15 @@ for i in $(find elements -type f \
         fi
 
         # Ensure 4 spaces indent are used
-
-        if [ "$(file -b --mime-type $i)" = "text/x-python" ]; then
-            flake8 $i
+        if [[ "$(file -b -k --mime-type $i)" =~ "text/x-python" ]]; then
+            flake8 $i || error "$i failed flake8"
         else
             if ! excluded indent ; then
-                if grep -q "^\( \{4\}\)* \{1,3\}[^ ]" ${i}; then
+                indent_regex='^\( \{4\}\)* \{1,3\}[^ ]'
+                if grep -q "$indent_regex" ${i}; then
                     error "$i should use 4 spaces indent"
+                    # outline the failing lines with line number
+                    grep -n "$indent_regex" ${i}
                 fi
             fi
         fi
@@ -91,11 +102,20 @@ for i in $(find elements -type f \
     if [ $(basename $i) = "element-deps" ]; then
         UNSORTED=${TMPDIR}/element-deps.unsorted
         SORTED=${TMPDIR}/element-deps.sorted
-        grep -v '^#' $i > ${UNSORTED}
+        grep -v -e '^#' -e '^$' $i > ${UNSORTED}
         sort ${UNSORTED} > ${SORTED}
         if [ -n "$(diff -c ${UNSORTED} ${SORTED})" ]; then
             error "$i is not sorted alphabetically"
+            diff -y ${UNSORTED} ${SORTED}
         fi
+    fi
+
+    # for consistency, let's just use #!/bin/bash everywhere (not
+    # /usr/bin/env, etc)
+    regex='^#!.*bash'
+    if [[ "$firstline" =~ $regex &&
+                "$firstline" != "#!/bin/bash" ]]; then
+        error "$i : only use #!/bin/bash for scripts"
     fi
 
     # Check that all scripts are set -eu -o pipefail and look for
@@ -108,7 +128,7 @@ for i in $(find elements -type f \
     # explicitly require bash for any scripts that don't have a specific
     # need to run under other shells, and any exceptions to that rule
     # may not want these checks either.
-    if [ -n "$(echo $firstline | grep '#!/bin/bash')" ]; then
+    if [[ "$firstline" =~ '#!/bin/bash' ]]; then
         if ! excluded sete; then
             if [ -z "$(grep "^set -[^ ]*e" $i)" ]; then
                 error "$i is not set -e"
@@ -130,7 +150,35 @@ for i in $(find elements -type f \
             fi
         fi
     fi
+
+
+    # check that sudo calls in phases run outside the chroot look
+    # "safe"; meaning that they seem to operate within the chroot
+    # somehow.  This is not fool-proof, but catches egregious errors,
+    # and makes you think about it if you're doing something outside
+    # the box.
+    if ! excluded safe_sudo; then
+        if [[ $(dirname $i) =~ (root.d|extra-data.d|block-device.d|finalise.d|cleanup.d) ]]; then
+            while read LINE
+            do
+                if [[ $LINE =~ "sudo " ]]; then
+                    # messy regex ahead!  Don't match:
+                    #  - explicitly ignored
+                    #  - basic comments
+                    #  - install-packages ... sudo ...
+                    #  - any of the paths passed into the out-of-chroot elements
+                    if [[ $LINE =~ (dib-lint: safe_sudo|^#|install-packages|TARGET_ROOT|IMAGE_BLOCK_DEVICE|TMP_MOUNT_PATH|TMP_IMAGE_PATH) ]]; then
+                        continue
+                    fi
+                    error "$i : potentially unsafe sudo\n -- $LINE"
+                fi
+            done < $i
+        fi
+    fi
+
 done
+
+echo "Checking indents..."
 
 for i in $(find elements -type f -and -name '*.rst' -or -type f -executable); do
     # Check for tab indentation
@@ -147,8 +195,49 @@ for i in $(find elements -type f -and -name '*.rst' -or -type f -executable); do
     fi
 done
 
-md_docs=$(find elements -name '*.md')
-if [ -n "$md_docs" ]; then
-    error ".md docs found: $md_docs"
+if ! excluded mddocs; then
+    md_docs=$(find elements -name '*.md')
+    if [ -n "$md_docs" ]; then
+        error ".md docs found: $md_docs"
+    fi
 fi
+
+echo "Checking YAML parsing..."
+for i in $(find elements -type f -name '*.yaml'); do
+    echo "Parsing  $i"
+    py_check="
+import yaml
+import sys
+try:
+    objs = yaml.load(open('$i'))
+except yaml.parser.ParserError:
+    sys.exit(1)
+"
+    if ! python -c "$py_check"; then
+        error "$i is not a valid YAML file"
+    fi
+done
+echo "Checking pkg-map files..."
+for i in $(find elements -type f \
+                -name 'pkg-map' -a \! -executable); do
+    echo "Parsing  $i"
+    py_check="
+import json
+import sys
+try:
+    objs = json.load(open('$i'))
+except ValueError:
+    sys.exit(1)
+"
+    if ! python -c "$py_check"; then
+        error "$i is not a valid JSON file"
+    fi
+done
+
+if [[ $rc == 0 ]]; then
+    echo "PASS"
+else
+    echo "*** FAIL: Some tests failed!"
+fi
+
 exit $rc

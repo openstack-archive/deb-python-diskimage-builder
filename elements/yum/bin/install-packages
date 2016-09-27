@@ -122,7 +122,22 @@ if [ -n "$WHITELIST" ]; then
         exit 0
     fi
 
+    # yum & dnf have a feature/bug where missing packages in a list of
+    # packages for install/erase do not raise an error exit [1].
+    # There is a corner case when specifying just *one* package, where
+    # it will fail if the package is missing.  Thus install-packages
+    # follows this behaviour; we may need to re-evaluate this at some
+    # point.
+    #
+    # [1] https://bugzilla.redhat.com/show_bug.cgi?id=965567
     ${YUM} -v -y $ACTION $EXTRA_ARGS $PKGS
+
+    if [ "$ACTION" == "install" ]; then
+        if [ ${YUM} == "dnf" ]; then
+            # Make sure dnf won't autoremove these packages
+            dnf mark install $PKGS
+        fi
+    fi
 
     # probably not the right place for this; but python-pip package on
     # fedora/rh calls pip "pip-python" while the rest of the work

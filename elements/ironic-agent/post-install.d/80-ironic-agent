@@ -6,7 +6,30 @@ fi
 set -eu
 set -o pipefail
 
-install-packages -e python-dev git cloud-init
+install-packages -e git cloud-init
+
 rm -rf /tmp/ironic-python-agent
 
-sudo systemctl disable iptables.service
+case "$DIB_INIT_SYSTEM" in
+    upstart)
+        if [ -f /etc/init/ufw.conf ]; then
+            mv /etc/init/ufw.conf /etc/init/ufw.conf.disabled
+        fi
+        if [ -f /etc/init/tgt.conf ]; then
+            mv /etc/init/tgt.conf /etc/init/tgt.conf.disabled
+        fi
+        ;;
+    systemd)
+        if [[ $(systemctl --no-pager list-unit-files iptables) =~ 'enabled' ]]; then
+            systemctl disable iptables.service
+        fi
+        systemctl enable $(svc-map ironic-python-agent).service
+        ;;
+    sysv)
+        update-rc.d iptables disable
+        ;;
+    *)
+        echo "Unsupported init system"
+        exit 1
+        ;;
+esac

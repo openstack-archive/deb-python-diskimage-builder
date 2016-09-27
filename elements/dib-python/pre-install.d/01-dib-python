@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [ ${DIB_DEBUG_TRACE:-0} -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
+
+python_path=$(command -v python2 || command -v python3)
+if [ -z "$python_path" ]; then
+    echo "Could not find python2 or python3 executable."
+    exit 1
+fi
+
+ln -sf $python_path /usr/local/bin/dib-python

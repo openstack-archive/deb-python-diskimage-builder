@@ -15,8 +15,13 @@
 from __future__ import print_function
 import argparse
 import collections
+import logging
 import os
 import sys
+
+import diskimage_builder.logging_config
+
+logger = logging.getLogger(__name__)
 
 
 def get_elements_dir():
@@ -42,8 +47,7 @@ def _get_set(element, fname, elements_dir=None):
             else:
                 raise
 
-    sys.stderr.write("ERROR: Element '%s' not found in '%s'\n" %
-                     (element, elements_dir))
+    logger.error("Element '%s' not found in '%s'" % (element, elements_dir))
     sys.exit(-1)
 
 
@@ -87,6 +91,7 @@ def expand_dependencies(user_elements, elements_dir=None):
     final_elements = set(user_elements)
     check_queue = collections.deque(user_elements)
     provided = set()
+    provided_by = collections.defaultdict(list)
 
     while check_queue:
         # bug #1303911 - run through the provided elements first to avoid
@@ -94,26 +99,35 @@ def expand_dependencies(user_elements, elements_dir=None):
         element = check_queue.popleft()
         if element in provided:
             continue
-        deps = dependencies(element, elements_dir)
-        provided.update(provides(element, elements_dir))
-        check_queue.extend(deps - (final_elements | provided))
-        final_elements.update(deps)
+        element_deps = dependencies(element, elements_dir)
+        element_provides = provides(element, elements_dir)
+        # save which elements provide another element for potential
+        # error message
+        for provide in element_provides:
+            provided_by[provide].append(element)
+        provided.update(element_provides)
+        check_queue.extend(element_deps - (final_elements | provided))
+        final_elements.update(element_deps)
 
     if "operating-system" not in provided:
-        sys.stderr.write(
-            "ERROR: Please include an operating system element.\n")
+        logger.error(
+            "Please include an operating system element.")
         sys.exit(-1)
 
     conflicts = set(user_elements) & provided
     if conflicts:
-        sys.stderr.write("ERROR: Following elements were explicitly required "
-                         "but are provided by other included elements: %s\n" %
-                         ", ".join(conflicts))
+        logger.error(
+            "The following elements are already provided by another element")
+        for element in conflicts:
+            logger.error("%s : already provided by %s" %
+                         (element, provided_by[element]))
         sys.exit(-1)
     return final_elements - provided
 
 
 def main(argv):
+    diskimage_builder.logging_config.setup()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('elements', nargs='+',
                         help='display dependencies of the given elements')
@@ -125,8 +139,8 @@ def main(argv):
     args = parser.parse_args(argv[1:])
 
     if args.expand_dependencies:
-        print("WARNING: expand-dependencies flag is deprecated,  "
-              "and is now on by default.", file=sys.stderr)
+        logger.warning("expand-dependencies flag is deprecated,  "
+                       "and is now on by default.", file=sys.stderr)
 
     print(' '.join(expand_dependencies(args.elements)))
     return 0
