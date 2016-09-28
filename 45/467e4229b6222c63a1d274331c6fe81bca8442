@@ -1,0 +1,10 @@
+Code-Review+1: Julia Kreger <juliaashleykreger@gmail.com>
+Code-Review+2: Stephanie Miller <stephane@alum.mit.edu>
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Workflow+1: greghaynes <greg@greghaynes.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 27 Sep 2016 23:10:05 +0000
+Reviewed-on: https://review.openstack.org/374366
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master
