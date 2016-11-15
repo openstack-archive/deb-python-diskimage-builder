@@ -1,0 +1,11 @@
+Code-Review+1: Colleen Murphy <colleen@gazlene.net>
+Code-Review+1: Andreas Jaeger <jaegerandi@gmail.com>
+Code-Review+2: Stephanie Miller <stephane@alum.mit.edu>
+Code-Review+2: Ian Wienand <iwienand@redhat.com>
+Workflow+1: Ian Wienand <iwienand@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 14 Nov 2016 10:01:05 +0000
+Reviewed-on: https://review.openstack.org/392003
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master
