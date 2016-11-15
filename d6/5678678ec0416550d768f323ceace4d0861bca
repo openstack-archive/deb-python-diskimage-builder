@@ -1,0 +1,9 @@
+Code-Review+1: Noam Angel <noama@mellanox.com>
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Workflow+1: Ian Wienand <iwienand@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 15 Nov 2016 00:43:49 +0000
+Reviewed-on: https://review.openstack.org/393009
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/feature/v2
