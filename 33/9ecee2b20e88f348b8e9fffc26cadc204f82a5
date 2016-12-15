@@ -1,0 +1,9 @@
+Code-Review+1: Nicolas Bock <nicolasbock@gmail.com>
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Workflow+1: greghaynes <greg@greghaynes.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 14 Dec 2016 15:33:33 +0000
+Reviewed-on: https://review.openstack.org/410639
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master
