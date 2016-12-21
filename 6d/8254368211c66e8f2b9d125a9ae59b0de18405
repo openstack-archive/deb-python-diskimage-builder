@@ -1,0 +1,9 @@
+Code-Review+2: greghaynes <greg@greghaynes.net>
+Workflow+1: greghaynes <greg@greghaynes.net>
+Code-Review+1: Jeremy Stanley <fungi@yuggoth.org>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 16 Dec 2016 17:27:31 +0000
+Reviewed-on: https://review.openstack.org/411898
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master

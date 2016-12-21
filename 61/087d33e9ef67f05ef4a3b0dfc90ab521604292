@@ -1,0 +1,10 @@
+Code-Review+1: Markos Chandras <mchandras@suse.de>
+Code-Review+2: Stephanie Miller <stephane@alum.mit.edu>
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Workflow+1: Ben Nemec <openstack@nemebean.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 20 Dec 2016 22:45:07 +0000
+Reviewed-on: https://review.openstack.org/405768
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master
