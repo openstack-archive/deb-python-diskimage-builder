@@ -1,0 +1,9 @@
+Code-Review+2: Stephanie Miller <stephane@alum.mit.edu>
+Code-Review+2: Andreas Florath <andreas@florath.net>
+Workflow+1: Andreas Florath <andreas@florath.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 13 Jan 2017 18:33:32 +0000
+Reviewed-on: https://review.openstack.org/419770
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master
