@@ -1,0 +1,9 @@
+Code-Review+2: Andreas Florath <andreas@florath.net>
+Code-Review+2: Ian Wienand <iwienand@redhat.com>
+Workflow+1: Ian Wienand <iwienand@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 07 Feb 2017 05:50:40 +0000
+Reviewed-on: https://review.openstack.org/420996
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master
