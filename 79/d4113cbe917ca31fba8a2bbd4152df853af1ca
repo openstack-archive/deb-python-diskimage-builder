@@ -1,0 +1,10 @@
+Code-Review+2: Paul Belanger <pabelanger@redhat.com>
+Code-Review+1: Colleen Murphy <colleen@gazlene.net>
+Code-Review+2: Clark Boylan <cboylan@sapwetik.org>
+Workflow+1: Clark Boylan <cboylan@sapwetik.org>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 11 Apr 2017 18:53:53 +0000
+Reviewed-on: https://review.openstack.org/455491
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master
