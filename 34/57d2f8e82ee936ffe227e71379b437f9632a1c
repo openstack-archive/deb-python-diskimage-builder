@@ -1,0 +1,10 @@
+Code-Review+2: yolanda.robla <yroblamo@redhat.com>
+Code-Review+1: Dirk Mueller <dirk@dmllr.de>
+Code-Review+2: Andreas Florath <andreas@florath.net>
+Workflow+1: Andreas Florath <andreas@florath.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sat, 22 Jul 2017 05:22:03 +0000
+Reviewed-on: https://review.openstack.org/484247
+Project: openstack/deb-python-diskimage-builder
+Branch: refs/heads/master
