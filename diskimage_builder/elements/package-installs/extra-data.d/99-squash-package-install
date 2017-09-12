@@ -1,8 +1,0 @@
-#!/bin/bash
-if [ ${DIB_DEBUG_TRACE:-0} -gt 0 ]; then
-    set -x
-fi
-set -eu
-set -o pipefail
-
-sudo -E $DIB_PYTHON_EXEC $(dirname $0)/../bin/package-installs-squash --elements="$IMAGE_ELEMENT" --path=$ELEMENTS_PATH $TMP_MOUNT_PATH/tmp/package-installs.json

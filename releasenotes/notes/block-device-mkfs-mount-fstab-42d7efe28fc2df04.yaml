@@ -1,4 +1,0 @@
----
-features:
-  - |
-    Adds mkfs, mount and fstab to the block device layer.

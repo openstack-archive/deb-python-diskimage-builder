@@ -1,5 +1,0 @@
-- mkfs:
-    base: fake
-    name: mkfs_root
-    label: this_label_is_too_long_to_work_with_xfs
-    type: xfs

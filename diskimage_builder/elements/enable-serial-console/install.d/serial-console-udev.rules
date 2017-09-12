@@ -1,1 +1,0 @@
-SUBSYSTEM=="tty", ACTION=="add", TAG+="systemd", ENV{SYSTEMD_WANTS}+="getty@$name.service", ATTRS{type}=="4"
